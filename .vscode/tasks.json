@@ -1,0 +1,325 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "FPGA: Lint (Verilator)",
+      "type": "shell",
+      "command": "${workspaceFolder}/../vscode-fpga/tools/vmake",
+      "args": [
+        "${fileDirname}",
+        "lint"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        {
+          "owner": "verilator",
+          "fileLocation": "absolute",
+          "pattern": {
+            "regexp": "^%(Warning|Error)(?:-[A-Z0-9_]+)?: (/[^:]+):(\\d+):(\\d+): (.*)$",
+            "severity": 1,
+            "file": 2,
+            "line": 3,
+            "column": 4,
+            "message": 5
+          }
+        }
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "FPGA: Lint design + testbench",
+      "type": "shell",
+      "command": "${workspaceFolder}/../vscode-fpga/tools/vmake",
+      "args": [
+        "${fileDirname}",
+        "lint-tb"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        {
+          "owner": "verilator",
+          "fileLocation": "absolute",
+          "pattern": {
+            "regexp": "^%(Warning|Error)(?:-[A-Z0-9_]+)?: (/[^:]+):(\\d+):(\\d+): (.*)$",
+            "severity": 1,
+            "file": 2,
+            "line": 3,
+            "column": 4,
+            "message": 5
+          }
+        }
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "FPGA: Simulate (Icarus)",
+      "type": "shell",
+      "command": "${workspaceFolder}/../vscode-fpga/tools/vmake",
+      "args": [
+        "${fileDirname}",
+        "sim"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        {
+          "owner": "iverilog",
+          "fileLocation": "absolute",
+          "severity": "error",
+          "pattern": {
+            "regexp": "^(/[^:]+):(\\d+): (?!\\$finish)(?:(error|warning|sorry): )?(.*)$",
+            "file": 1,
+            "line": 2,
+            "severity": 3,
+            "message": 4
+          }
+        }
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "FPGA: Simulate other testbench (Icarus)",
+      "type": "shell",
+      "command": "${workspaceFolder}/../vscode-fpga/tools/vmake",
+      "args": [
+        "${fileDirname}",
+        "sim",
+        "TB=${input:tbName}"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        {
+          "owner": "iverilog",
+          "fileLocation": "absolute",
+          "severity": "error",
+          "pattern": {
+            "regexp": "^(/[^:]+):(\\d+): (?!\\$finish)(?:(error|warning|sorry): )?(.*)$",
+            "file": 1,
+            "line": 2,
+            "severity": 3,
+            "message": 4
+          }
+        }
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "FPGA: Open waveform (Icarus)",
+      "type": "shell",
+      "command": "${workspaceFolder}/../vscode-fpga/tools/vmake",
+      "args": [
+        "${fileDirname}",
+        "waves"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "FPGA: Simulate (Vivado xsim)",
+      "type": "shell",
+      "command": "${workspaceFolder}/../vscode-fpga/tools/vmake",
+      "args": [
+        "${fileDirname}",
+        "sim-xsim"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "FPGA: Open waveform (xsim)",
+      "type": "shell",
+      "command": "${workspaceFolder}/../vscode-fpga/tools/vmake",
+      "args": [
+        "${fileDirname}",
+        "waves-xsim"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "FPGA: Schematic (Yosys)",
+      "type": "shell",
+      "command": "${workspaceFolder}/../vscode-fpga/tools/vmake",
+      "args": [
+        "${fileDirname}",
+        "schematic"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "FPGA: Schematic flattened (Yosys)",
+      "type": "shell",
+      "command": "${workspaceFolder}/../vscode-fpga/tools/vmake",
+      "args": [
+        "${fileDirname}",
+        "schematic-flat"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "FPGA: Build bitstream (Vivado)",
+      "type": "shell",
+      "command": "${workspaceFolder}/../vscode-fpga/tools/vmake",
+      "args": [
+        "${fileDirname}",
+        "bit"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "FPGA: Create Vivado project (.xpr)",
+      "type": "shell",
+      "command": "${workspaceFolder}/../vscode-fpga/tools/vmake",
+      "args": [
+        "${fileDirname}",
+        "xpr"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "FPGA: Program board",
+      "type": "shell",
+      "command": "${workspaceFolder}/../vscode-fpga/tools/vmake",
+      "args": [
+        "${fileDirname}",
+        "program"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "FPGA: Program SPI flash (permanent)",
+      "type": "shell",
+      "command": "${workspaceFolder}/../vscode-fpga/tools/vmake",
+      "args": [
+        "${fileDirname}",
+        "flash"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "FPGA: Clean build",
+      "type": "shell",
+      "command": "${workspaceFolder}/../vscode-fpga/tools/vmake",
+      "args": [
+        "${fileDirname}",
+        "clean"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "tbName",
+      "type": "promptString",
+      "description": "Testbench module name (e.g. tb_uart_tx)"
+    }
+  ]
+}
