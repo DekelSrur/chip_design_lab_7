@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 module tb_pwm_ctrl;
-    import pkg_lab6::*;
+    import pkg_sys::*;
 
     localparam int SLOTS = 1024;
     localparam int PWM_W = $clog2(SLOTS);

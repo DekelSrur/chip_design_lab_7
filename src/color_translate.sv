@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 
 module color_translate
-    import pkg_lab6::*;
+    import pkg_sys::*;
 #(
     parameter int PWM_SLOTS = PWM_SLOTS_DEF,    // 512 / 1024 / 2048 / 4096 / 8192
     parameter int CIE_SCALE = CIE_SCALE_DEF,    // brightness = CIE_SCALE / 256 (1..256)

@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 
 module param_ctrl 
-    import pkg_lab6::*; 
+    import pkg_sys::*; 
 (
     input logic clk, rst_n,
     input logic [4:0] btn_db,                                   // {center, up, down, left, right}

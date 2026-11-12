@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-module parser import pkg_lab6::*;(
+module parser import pkg_sys::*;(
     input logic clk, rst_n, rx_ready,
     input logic [BYTE-1:0] rx_byte,
     output logic [BYTE-1:0] row_index, col_index, pixel_value,

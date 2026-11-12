@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 
-package pkg_lab6;
+package pkg_sys;
 
 //system-uart
     parameter int CLK_FREQ_HZ = 100_000_000;
@@ -24,3 +24,4 @@ package pkg_lab6;
                                 LEDS5_4   = 8'b00000011} leds_t;
 
 endpackage
+

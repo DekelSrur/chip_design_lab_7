@@ -19,9 +19,11 @@
     "editor.insertSpaces": true
   },
   "verilog.linting.linter": "verilator",
+  "verilog.linting.path": "/opt/homebrew/bin/",
   "verilog.linting.verilator.runAtFileLocation": true,
-  "verilog.linting.verilator.arguments": "-Wall -Wno-fatal -Wno-DECLFILENAME --timing -y . -y ../src ../src/pkg_lab6.sv",
+  "verilog.linting.verilator.arguments": "-Wall -Wno-fatal -Wno-DECLFILENAME --timing -y . -y ../src ../src/pkg_sys.sv ../src/pkg_rgf.sv ../src/rgf_bus_if.sv",
   "terminal.integrated.env.osx": {
-    "PATH": "/opt/homebrew/bin:/usr/local/bin:${env:PATH}"
+    "PATH": "/opt/homebrew/bin:/usr/local/bin:${env:PATH}",
+  "verilog.linting.path": "/opt/homebrew/bin/",
   }
 }

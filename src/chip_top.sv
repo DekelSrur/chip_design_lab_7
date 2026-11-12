@@ -1,14 +1,14 @@
 `timescale 1ns/1ps
 
 module chip_top #(
-    parameter CLKS_PER_BIT = pkg_lab6::CLKS_PER_BIT,    //from package
+    parameter CLKS_PER_BIT = pkg_sys::CLKS_PER_BIT,    //from package
     parameter DEBOUNCE_CYCLES = 1_000_000,              //debounce window: 10 ms
     parameter DELAY_50MS = 5_000_000,
     parameter DELAY_100MS = 10_000_000,
     parameter DELAY_200MS = 20_000_000,
     parameter REFRESH_DIV = 25_000,                     //100 MHz / 25,000 = 4 kHz -> 500 Hz per digit 
-    parameter PWM_SLOTS = pkg_lab6::PWM_SLOTS_DEF,      //PWM resolution 512..8192
-    parameter CIE_SCALE = pkg_lab6::CIE_SCALE_DEF       //brightness, out of 256   
+    parameter PWM_SLOTS = pkg_sys::PWM_SLOTS_DEF,      //PWM resolution 512..8192
+    parameter CIE_SCALE = pkg_sys::CIE_SCALE_DEF       //brightness, out of 256   
 )(
     input logic clk,
     input logic cpu_resetn,

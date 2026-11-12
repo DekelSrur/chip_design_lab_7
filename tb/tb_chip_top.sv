@@ -8,7 +8,7 @@
 //   Not tested yet (spec pending): color report sent on UART by tx_fsm,
 //   RX display of applyRGB.
 module tb_chip_top;
-    import pkg_lab6::*;
+    import pkg_sys::*;
 
     localparam int CPB   = 64;                  // clocks per bit in simulation
     localparam int T_BIT = CPB * 10;            // one bit = 640 ns

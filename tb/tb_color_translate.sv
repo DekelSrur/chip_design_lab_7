@@ -3,7 +3,7 @@
 //   dut_4k  : 4096 slots, CIE 256 (G_UP - no brightness limit)
 //   dut_512 :  512 slots, CIE 64 (G_DOWN)
 module tb_color_translate;
-    import pkg_lab6::*;
+    import pkg_sys::*;
 
 //DUT signals - 4-state logic, so X/Z from the DUT stays visible
     logic clk = 0;

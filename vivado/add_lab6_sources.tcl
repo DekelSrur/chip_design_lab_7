@@ -6,7 +6,7 @@ set root [file normalize [file join [get_property DIRECTORY [current_project]] .
 puts "lab_6 root: $root"
 
 # --- design sources ---
-foreach f {pkg_lab6.sv param_ctrl.sv color_translate.sv pwm_ctrl.sv black_magic_box.sv} {
+foreach f {pkg_sys.sv param_ctrl.sv color_translate.sv pwm_ctrl.sv black_magic_box.sv} {
     set p [file join $root src $f]
     if {![file exists $p]} { puts "MISSING on disk: $p"; continue }
     if {[llength [get_files -quiet -of [get_filesets sources_1] $p]] == 0} {

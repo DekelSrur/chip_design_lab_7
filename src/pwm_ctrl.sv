@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 
 module pwm_ctrl
-    import pkg_lab6::*;
+    import pkg_sys::*;
 #(
     parameter int PWM_SLOTS = PWM_SLOTS_DEF,    // 512 / 1024 / 2048 / 4096 / 8192
     localparam int PWM_W = $clog2(PWM_SLOTS)    //counter
