@@ -3,7 +3,7 @@
 interface rgf_bus_if import pkg_rgf::*;
 #(
 
-  DATA_W = 32
+  parameter int DATA_W = 32
   
 );
   
@@ -13,12 +13,12 @@ interface rgf_bus_if import pkg_rgf::*;
   logic [DATA_W-1:0] rdata;
   logic err;
 
-  modport wr_master (
+  modport rw_master (
     output wr_en, addr, wdata, 
     input  rdata
     ); 
 
-  modport wr_slave (
+  modport rw_slave (
     input  wr_en, addr, wdata, 
     output rdata
     );  
