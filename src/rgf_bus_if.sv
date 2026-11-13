@@ -8,7 +8,7 @@ interface rgf_bus_if import pkg_rgf::*;
 );
   
   logic wr_en;
-  cnt_regs_t addr;
+  regs_addr_t addr;
   logic [DATA_W-1:0] wdata;
   logic [DATA_W-1:0] rdata;
   logic err;

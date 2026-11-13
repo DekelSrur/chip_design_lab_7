@@ -19,9 +19,9 @@ package pkg_sys;
 //display selectiom
     typedef enum logic [1:0] {T0, T1, T2, T3} digits_t; //T0=B, T1=G, T2=R, T3=LED
     typedef enum logic [7:0] {LEDS13_12 = 8'b11000000, 
-                                LEDS10_9  = 8'b00110000, 
-                                LEDS8_7   = 8'b00001100, 
-                                LEDS5_4   = 8'b00000011} leds_t;
+                              LEDS10_9  = 8'b00110000, 
+                              LEDS8_7   = 8'b00001100, 
+                              LEDS5_4   = 8'b00000011} leds_t;
 
 endpackage
 
