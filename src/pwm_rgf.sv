@@ -37,6 +37,7 @@ module pwm_rgf
             RED_LUT: lut_sel[2] = '1;
             GREEN_LUT: lut_sel[1] = '1;
             BLUE_LUT: lut_sel[0] = '1;
+            default: ;
         endcase    
     end
 
@@ -48,6 +49,7 @@ module pwm_rgf
                 lut_sel[2]: bus.rdata = DATA_W'(lut_reg[2]);    //red
                 lut_sel[1]: bus.rdata = DATA_W'(lut_reg[1]);    //green 
                 lut_sel[0]: bus.rdata = DATA_W'(lut_reg[0]);    //blue
+                default: ;
             endcase
         end
     end
