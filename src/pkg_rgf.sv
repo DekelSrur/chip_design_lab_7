@@ -6,6 +6,15 @@ package pkg_rgf;
   parameter int ADDR_W = 24;
   parameter int DATA_W = 32;
 
+//addr_xbar parameters
+  parameter int N_RGF = 4;
+  typedef enum int {
+      LED_IDX = 0,
+      PWM_IDX = 1,
+      CNT_IDX = 2,
+      SYS_IDX = 3
+      } rgf_idx_t;
+
 //led_ctrl parameters
   parameter int LED_DATA_W = 6;
   parameter int PATTERN_DATA_W = 2;
@@ -45,19 +54,20 @@ typedef struct packed{
   parameter lut_reg_t LUT_RST = '{init_phase: 9'h000, magnitude: 2'h0, out_freq: 13'h03E8};
   parameter int LUT_DATA_W = 24;
 
-  typedef enum {LED_CTRL      = 32'h0000,
-                LED_PATTERN   = 32'h0004,
-                PWM_CFG       = 32'h0008,
-                RED_LUT       = 32'h000C,
-                GREEN_LUT     = 32'h0010,
-                BLUE_LUT      = 32'h0014,
-                RX_PKT_CNT    = 32'h0018,
-                TX_PKT_CNT    = 32'h001C,
-                COLOR_MSG_CNT = 32'h0020,
-                CFG_MSG_CNT   = 32'h0024,
-                SYS_CTRL      = 32'h0028,
-                SYS_STATUS    = 32'h002C,
-                SYS_VERSION   = 32'h0030
+  typedef enum logic [ADDR_W-1:0] {
+                LED_CTRL      = 24'h0000,
+                LED_PATTERN   = 24'h0004,
+                PWM_CFG       = 24'h0008,
+                RED_LUT       = 24'h000C,
+                GREEN_LUT     = 24'h0010,
+                BLUE_LUT      = 24'h0014,
+                RX_PKT_CNT    = 24'h0018,
+                TX_PKT_CNT    = 24'h001C,
+                COLOR_MSG_CNT = 24'h0020,
+                CFG_MSG_CNT   = 24'h0024,
+                SYS_CTRL      = 24'h0028,
+                SYS_STATUS    = 24'h002C,
+                SYS_VERSION   = 24'h0030
   } regs_addr_t;
 
 endpackage
