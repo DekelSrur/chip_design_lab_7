@@ -13,7 +13,14 @@ module tb_rom;
     int errors = 0;
     int expected;
 
-    rom #(.DEPTH(DEPTH), .WIDTH(WIDTH)) dut (.*);
+    rom #(
+        .DEPTH (DEPTH),
+        .WIDTH (WIDTH)
+    ) dut (
+        .clk  (clk),
+        .addr (addr),
+        .data (data)
+    );
 
     always #5 clk = ~clk;
 
