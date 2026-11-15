@@ -9,17 +9,19 @@ module tb_pwm_ctrl;
     //DUT signals - 4-state logic, so X/Z from the DUT stays visible
     logic clk = 0;
     logic rst_n = 0;
-    logic [N_LEDS-1:0][N_CH-1:0][PWM_W-1:0] duty = '0;  // per LED {R, G, B}, [0]=LED16 [1]=LED17
+    logic [N_CH-1:0][PWM_W-1:0] duty = '0;  // {R, G, B}
     logic led_sel = 1;                      // 1 = LED16, 0 = LED17
+    logic [15:0] pwm_slots = SLOTS;         // PWM_CFG.time_slots
     logic [N_CH-1:0] led16, led17;          // {R, G, B}
 
     //tb-internal bookkeeping - 2-state / int
     int errors = 0;
     int hi16 [N_CH], hi17 [N_CH];           // measured high cycles per channel
     int cnt_hi;
+    int per;                                // measured period length
 
     pwm_ctrl #(.PWM_SLOTS(SLOTS)) dut (
-        .clk(clk), .rst_n(rst_n), .duty(duty), .led_sel(led_sel),
+        .clk(clk), .rst_n(rst_n), .duty(duty), .pwm_slots(pwm_slots), .led_on({~led_sel, led_sel}),
         .led16(led16), .led17(led17));
 
     always #5 clk = ~clk;                   // 100 MHz
@@ -36,19 +38,21 @@ module tb_pwm_ctrl;
 
     //stop on the last slot of the current period -> the next period uses the new duty
     task automatic wait_period_end();
-        do @(negedge clk); while (dut.cnt !== '1);
+        do @(negedge clk); while (dut.last_slot !== 1'b1);
     endtask : wait_period_end
 
     //count high cycles over one full period
     //window starts at cnt == 1 because the outputs are registered (1-clock lag)
     task automatic measure(output int h16 [N_CH], output int h17 [N_CH]);
         bit x_seen = 0;                     // report X/Z only once per period
-        do @(negedge clk); while (dut.cnt !== PWM_W'(1));
+        int n;
+        do @(negedge clk); while (dut.cnt !== 1);
+        n = dut.slots_q;                    // length of this period
         foreach (h16[c]) begin
             h16[c] = 0;
             h17[c] = 0;
         end
-        repeat (SLOTS) begin
+        for (int i = 0; i < n; i++) begin
             if (!x_seen && !outputs_known()) x_seen = 1;
             foreach (h16[c]) begin
                 h16[c] += (led16[c] === 1'b1);
@@ -58,6 +62,43 @@ module tb_pwm_ctrl;
         end
     endtask : measure
 
+    //length of the next full period, in clocks (cnt == 0 to the next cnt == 0)
+    task automatic period_len(output int len);
+        do @(negedge clk); while (dut.cnt !== 0);
+        len = 0;
+        do begin
+            @(negedge clk);
+            len++;
+        end while (dut.cnt !== 0 && len < 20000);
+    endtask : period_len
+
+    //runtime period: duty rescaled to slots, period length, both LEDs
+    task automatic check_slots(input int slots, input int exp_per, input int r, input int g, input int b,
+                               input string name);
+        int exp [N_CH];
+        int n_bad = 0;
+        @(negedge clk);
+        pwm_slots = 16'(slots);
+        duty = {PWM_W'(r), PWM_W'(g), PWM_W'(b)};
+        led_sel = 1'b1;
+        wait_period_end();                  // new values are loaded here
+        period_len(per);
+        exp[0] = (b * exp_per) >> PWM_W;
+        exp[1] = (g * exp_per) >> PWM_W;
+        exp[2] = (r * exp_per) >> PWM_W;
+        measure(hi16, hi17);
+        for (int c = 0; c < N_CH; c++)
+            if (hi16[c] != exp[c] || hi17[c] != 0) n_bad++;
+        if (per != exp_per || n_bad != 0) begin
+            $display("%s FAILED: slots=%0d period=%0d (exp %0d), LED16 RGB=%0d/%0d/%0d (exp %0d/%0d/%0d)",
+                     name, slots, per, exp_per, hi16[2], hi16[1], hi16[0], exp[2], exp[1], exp[0]);
+            errors++;
+        end
+        else
+            $display("%s PASSED: slots=%0d -> period %0d, LED16 RGB=%0d/%0d/%0d",
+                     name, slots, per, hi16[2], hi16[1], hi16[0]);
+    endtask : check_slots
+
     //program duty / led_sel, measure one period, compare with the expected counts
     task automatic check_duty(input int r, input int g, input int b,
                               input logic sel, input string name);
@@ -65,7 +106,7 @@ module tb_pwm_ctrl;
         int n_bad;
         exp = '{b, g, r};                   // index 0 = B, 1 = G, 2 = R
         @(negedge clk);
-        duty    = {2{PWM_W'(r), PWM_W'(g), PWM_W'(b)}};   // same values on both LEDs
+        duty    = {PWM_W'(r), PWM_W'(g), PWM_W'(b)};
         led_sel = sel;
         wait_period_end();
         measure(hi16, hi17);
@@ -105,16 +146,13 @@ module tb_pwm_ctrl;
 
         //test 4: duty changed in the middle of a period -> current period keeps the old value
         @(negedge clk);
-        duty = {2{PWM_W'(200), PWM_W'(0), PWM_W'(0)}};
+        duty = {PWM_W'(200), PWM_W'(0), PWM_W'(0)};
         led_sel = 1'b1;
         wait_period_end();
         do @(negedge clk); while (dut.cnt !== PWM_W'(1));
         cnt_hi = 0;
         for (int i = 0; i < SLOTS; i++) begin
-            if (i == SLOTS/2) begin                     // change mid-period
-                duty[0][2] = PWM_W'(800);
-                duty[1][2] = PWM_W'(800);
-            end
+            if (i == SLOTS/2) duty[2] = PWM_W'(800);    // change mid-period
             cnt_hi += (led16[2] === 1'b1);
             @(negedge clk);
         end
@@ -132,23 +170,32 @@ module tb_pwm_ctrl;
             check_duty($urandom_range(SLOTS-1), $urandom_range(SLOTS-1),
                        $urandom_range(SLOTS-1), 1'($urandom_range(1)), "Test 5");
 
-        // test 6: different duty per LED - each LED uses only its own values
-        for (int sel = 1; sel >= 0; sel--) begin
+        // test 6: runtime period from PWM_CFG.time_slots, duty rescaled to it
+        check_slots(300,  300,  512, 1023, 0,   "Test 6a");
+        check_slots(2048, 2048, 256, 768,  100, "Test 6b");
+        check_slots(5000, 5000, 1023, 1,   512, "Test 6c");
+
+        // test 7: illegal values are clamped (0 -> 2 slots, 9000 -> 8192 slots)
+        check_slots(0,    2,    512, 1023, 0,   "Test 7a");
+        check_slots(9000, 8192, 512, 1023, 1,   "Test 7b");
+
+        // test 8: a new period length takes effect only at the end of the current period
+        check_slots(1000, 1000, 100, 100, 100, "Test 8 setup");
+        do @(negedge clk); while (dut.cnt !== 500);
+        pwm_slots = 16'd400;                // change in the middle of a 1000-slot period
+        cnt_hi = 1;
+        while (dut.cnt !== 0) begin         // finish the current period
             @(negedge clk);
-            duty[0] = {PWM_W'(300), PWM_W'(20), PWM_W'(900)};   // LED16
-            duty[1] = {PWM_W'(50), PWM_W'(600), PWM_W'(5)};     // LED17
-            led_sel = 1'(sel);
-            wait_period_end();
-            measure(hi16, hi17);
-            if (sel ? (hi16[2] != 300 || hi16[1] != 20 || hi16[0] != 900 || (hi17[2] | hi17[1] | hi17[0]) != 0)
-                    : (hi17[2] != 50 || hi17[1] != 600 || hi17[0] != 5 || (hi16[2] | hi16[1] | hi16[0]) != 0)) begin
-                $display("Test 6 FAILED: sel=%0d LED16=%0d/%0d/%0d LED17=%0d/%0d/%0d",
-                         sel, hi16[2], hi16[1], hi16[0], hi17[2], hi17[1], hi17[0]);
-                errors++;
-            end
-            else
-                $display("Test 6 PASSED: %s uses its own duty set", sel ? "LED16" : "LED17");
+            cnt_hi++;
         end
+        period_len(per);
+        if (cnt_hi != 501 || per != 400) begin
+            $display("Test 8 FAILED: current period ended after %0d more clocks (exp 501), next period %0d (exp 400)",
+                     cnt_hi, per);
+            errors++;
+        end
+        else
+            $display("Test 8 PASSED: period change applied at the period end");
 
         if (errors == 0) $display("ALL TESTS PASSED");
         else $display("%0d TEST(S) FAILED", errors);

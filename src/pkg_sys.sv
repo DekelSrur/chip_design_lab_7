@@ -10,10 +10,12 @@ package pkg_sys;
  //data
     parameter int BYTE = 8;                             //one sRGB channel / UART byte
     parameter int N_CH = 3;                             //{R, G, B}
-    parameter int N_LEDS = 2;                           //[0] = LED16, [1] = LED17
 
 //color-pwm path
-    parameter int PWM_SLOTS_DEF = 1024;                 //PWM resolution: 512 .. 8192, power of 2
+    parameter int N_LED = 2;                            //index 0 = LED16, index 1 = LED17
+    parameter int PWM_SLOTS_DEF = 1024;                 //PWM resolution after reset (PWM_CFG.time_slots)
+    parameter int PWM_SLOTS_MAX = 8192;                 //largest legal PWM_CFG.time_slots
+    parameter int DUTY_W = $clog2(PWM_SLOTS_MAX);       //duty / PWM counter width: 13 bits
     parameter int GAMMA_W = 10;                         //black_magic_box entry width
     parameter int CIE_SCALE_DEF = 128;                  //brightness, out of 256
 

@@ -10,11 +10,11 @@ module tb_color_translate;
     logic rst_n = 0;
     logic [N_CH*BYTE-1:0] applyRGB = '0;    // {R, G, B}
     logic busy = 0;                         // tx_fsm busy (driven by the TB)
-    logic [N_LEDS-1:0] cie_en = '1;         // [0]=LED16 [1]=LED17, 1 = gamma + CIE, 0 = linear
+    logic cie_on = 1;                       // 1 = gamma + CIE, 0 = linear
 
-    logic [N_LEDS-1:0][N_CH-1:0][9:0]  duty_1k; logic [N_CH*10-1:0] trns_1k; logic start_1k;
-    logic [N_LEDS-1:0][N_CH-1:0][11:0] duty_4k; logic [N_CH*12-1:0] trns_4k;   logic start_4k;
-    logic [N_LEDS-1:0][N_CH-1:0][8:0]  duty_512; logic [N_CH*9-1:0] trns_512;  logic start_512;
+    logic [N_CH-1:0][9:0]  duty_1k; logic [N_CH*10-1:0] trns_1k; logic start_1k;
+    logic [N_CH-1:0][11:0] duty_4k; logic [N_CH*12-1:0] trns_4k;   logic start_4k;
+    logic [N_CH-1:0][8:0]  duty_512; logic [N_CH*9-1:0] trns_512;  logic start_512;
 
     // TB-internal bookkeeping - 2-state / int
     int errors  = 0;
@@ -23,15 +23,15 @@ module tb_color_translate;
     logic [N_CH*BYTE-1:0] rgb;
 
     color_translate #(.PWM_SLOTS(1024), .CIE_SCALE(128)) dut_1k (
-        .clk(clk), .rst_n(rst_n), .applyRGB(applyRGB), .cie_en(cie_en), .busy(busy),
+        .clk(clk), .rst_n(rst_n), .applyRGB(applyRGB), .cie_on(cie_on), .busy(busy),
         .duty(duty_1k), .color_start(start_1k), .trns_msg(trns_1k));
 
     color_translate #(.PWM_SLOTS(4096), .CIE_SCALE(256)) dut_4k (
-        .clk(clk), .rst_n(rst_n), .applyRGB(applyRGB), .cie_en(cie_en), .busy(busy),
+        .clk(clk), .rst_n(rst_n), .applyRGB(applyRGB), .cie_on(cie_on), .busy(busy),
         .duty(duty_4k), .color_start(start_4k), .trns_msg(trns_4k));
 
     color_translate #(.PWM_SLOTS(512), .CIE_SCALE(64)) dut_512 (
-        .clk(clk), .rst_n(rst_n), .applyRGB(applyRGB), .cie_en(cie_en), .busy(busy),
+        .clk(clk), .rst_n(rst_n), .applyRGB(applyRGB), .cie_on(cie_on), .busy(busy),
         .duty(duty_512), .color_start(start_512), .trns_msg(trns_512));
 
     always #5 clk = ~clk;                   // 100 MHz
@@ -59,18 +59,10 @@ module tb_color_translate;
         int lin, fit;
         lin = dut_1k.gamma_table[srgb];
         fit = (pwm_w >= GAMMA_W) ? (lin << (pwm_w - GAMMA_W)) : (lin >> (GAMMA_W - pwm_w));
+        if (!cie_on)                        // linear path: sRGB stretched to pwm_w bits (MSBs repeated)
+            return (srgb << (pwm_w - BYTE)) | (srgb >> (2*BYTE - pwm_w));
         return (fit * cie) >> 8;
     endfunction : exp_duty
-
-    // linear path (CIE off): sRGB stretched to pwm_w bits by repeating its MSBs
-    function automatic int exp_lin(input int srgb, input int pwm_w);
-        return (srgb << (pwm_w - BYTE)) | (srgb >> (2*BYTE - pwm_w));
-    endfunction : exp_lin
-
-    // expected duty of one LED: gamma + CIE when its cie_en bit is 1, linear otherwise
-    function automatic int exp_led(input int srgb, input int pwm_w, input int cie, input logic on);
-        return on ? exp_duty(srgb, pwm_w, cie) : exp_lin(srgb, pwm_w);
-    endfunction : exp_led
 
     // compare duty (and optionally trns_msg) of all instances with the reference model
     // !== is used on purpose: an X/Z in the DUT output counts as a mismatch
@@ -78,17 +70,15 @@ module tb_color_translate;
                                 output int n_bad);
         int s;
         n_bad = 0;
-        for (int c = 0; c < N_CH; c++) begin
+        foreach (duty_1k[c]) begin
             s = rgb_in[c*BYTE +: BYTE];
-            for (int l = 0; l < N_LEDS; l++) begin
-                if (duty_1k[l][c]  !== exp_led(s, 10, 128, cie_en[l])) n_bad++;
-                if (duty_4k[l][c]  !== exp_led(s, 12, 256, cie_en[l])) n_bad++;
-                if (duty_512[l][c] !== exp_led(s,  9,  64, cie_en[l])) n_bad++;
-            end
-            if (check_trns) begin                   // report carries the LED16 values
-                if (trns_1k [c*10 +: 10] !== exp_led(s, 10, 128, cie_en[0])) n_bad++;
-                if (trns_4k [c*12 +: 12] !== exp_led(s, 12, 256, cie_en[0])) n_bad++;
-                if (trns_512[c*9  +: 9 ] !== exp_led(s,  9,  64, cie_en[0])) n_bad++;
+            if (duty_1k[c]  !== exp_duty(s, 10, 128)) n_bad++;
+            if (duty_4k[c]  !== exp_duty(s, 12, 256)) n_bad++;
+            if (duty_512[c] !== exp_duty(s,  9,  64)) n_bad++;
+            if (check_trns) begin
+                if (trns_1k [c*10 +: 10] !== exp_duty(s, 10, 128)) n_bad++;
+                if (trns_4k [c*12 +: 12] !== exp_duty(s, 12, 256)) n_bad++;
+                if (trns_512[c*9  +: 9 ] !== exp_duty(s,  9,  64)) n_bad++;
             end
         end
     endtask : check_values
@@ -125,7 +115,7 @@ module tb_color_translate;
         end
         else
             $display("Test 2 PASSED: latency=4, duty_1k R=%0d G=%0d B=%0d",
-                     duty_1k[0][2], duty_1k[0][1], duty_1k[0][0]);
+                     duty_1k[2], duty_1k[1], duty_1k[0]);
         @(negedge clk);
         if (start_1k !== 1'b0) begin
             $display("Test 2b FAILED: color_start longer than one cycle");
@@ -201,10 +191,9 @@ module tb_color_translate;
         if (errors == n_before)
             $display("Test 6 PASSED: 256-value sweep on all channels and resolutions");
 
-        // test 7: CIE off on LED17 only - a cie_en change alone triggers a new report,
-        //         LED16 keeps gamma + CIE, LED17 gets the linear values
+        // test 7: a cie_on change alone triggers a new report with the linear values
         n_before = n_start;
-        @(negedge clk) cie_en = 2'b01;
+        @(negedge clk) cie_on = 0;
         lat = 0;
         do begin
             @(negedge clk);
@@ -216,11 +205,10 @@ module tb_color_translate;
             errors++;
         end
         else
-            $display("Test 7 PASSED: cie_en change reported, LED16 R=%0d (gamma) LED17 R=%0d (linear)",
-                     duty_1k[0][2], duty_1k[1][2]);
+            $display("Test 7 PASSED: CIE off reported, duty_1k R=%0d G=%0d B=%0d (linear)",
+                     duty_1k[2], duty_1k[1], duty_1k[0]);
 
-        // test 8: full sweep with CIE off on LED16 and on for LED17 (report = linear values)
-        cie_en = 2'b10;
+        // test 8: full sweep with CIE off, all resolutions
         n_before = errors;
         for (int i = 0; i < 256; i++) begin
             rgb = {8'(i), 8'(255 - i), 8'(i) ^ 8'hA5};
@@ -233,14 +221,13 @@ module tb_color_translate;
             end
         end
         if (errors == n_before)
-            $display("Test 8 PASSED: linear sweep on LED16, gamma on LED17, all resolutions");
+            $display("Test 8 PASSED: linear sweep on all channels and resolutions");
 
-        // test 9: linear full range - sRGB 255 gives an all-ones duty (100% - 1 slot)
-        cie_en = 2'b00;
+        // test 9: linear full range - sRGB 255 gives an all-ones duty, 0 gives 0
         rgb = {8'hFF, 8'h00, 8'h80};
         apply_and_wait(rgb, lat);
-        if (duty_1k[0][2] !== 10'h3FF || duty_4k[1][2] !== 12'hFFF || duty_512[0][1] !== 9'h000) begin
-            $display("Test 9 FAILED: 255 -> %0d / %0d, 0 -> %0d", duty_1k[0][2], duty_4k[1][2], duty_512[0][1]);
+        if (duty_1k[2] !== 10'h3FF || duty_4k[2] !== 12'hFFF || duty_512[1] !== 9'h000) begin
+            $display("Test 9 FAILED: 255 -> %0d / %0d, 0 -> %0d", duty_1k[2], duty_4k[2], duty_512[1]);
             errors++;
         end
         else
