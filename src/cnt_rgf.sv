@@ -15,10 +15,10 @@ module cnt_rgf
     rgf_bus_if.ro_slave bus                  // interface with addr_xbar
 );
 
-logic [ADDR_W-1:0] rx_pkt_reg;
-logic [ADDR_W-1:0] tx_pkt_reg;
-logic [ADDR_W-1:0] color_msg_reg;
-logic [ADDR_W-1:0] cfg_msg_reg;
+logic [DATA_W-1:0] rx_pkt_reg;
+logic [DATA_W-1:0] tx_pkt_reg;
+logic [DATA_W-1:0] color_msg_reg;
+logic [DATA_W-1:0] cfg_msg_reg;
 
 always_comb begin : reg_read_dec
     bus.rdata = '0;
@@ -40,10 +40,10 @@ always_ff @(posedge clk or negedge rst_n) begin : data_count_and_sort
         cfg_msg_reg <= '0;
     end
     else begin
-        rx_pkt_reg <=+ rx_pkt;
-        tx_pkt_reg <=+ tx_pkt;
-        color_msg_reg <=+ color_msg;
-        cfg_msg_reg <=+ cfg_msg;
+        rx_pkt_reg <=+ rx_pkt_reg + DATA_W'(rx_pkt);
+        tx_pkt_reg <=+ tx_pkt_reg + DATA_W'(tx_pkt);
+        color_msg_reg <=+ color_msg_reg + DATA_W'(color_msg);
+        cfg_msg_reg <=+ cfg_msg_reg + DATA_W'(cfg_msg);
     end
 end
 endmodule

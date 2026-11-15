@@ -18,24 +18,32 @@ package pkg_rgf;
 //led_ctrl parameters
   parameter int LED_DATA_W = 6;
   parameter int PATTERN_DATA_W = 2;
-  typedef enum {LED16 = 2'b01, LED17 = 2'b10} led_sel_t;
 
-  parameter logic [ADDR_W-1:0] RW_REG_ADDR  = 8'h00;
-  parameter logic [ADDR_W-1:0] RO_REG_ADDR  = 8'h01;
-  parameter logic [ADDR_W-1:0] R0C_REG_ADDR = 8'h02;
+//LED_CTRL.led_sel: bit 0 = LED16, bit 1 = LED17
+  typedef enum logic [1:0] {
+      LED_NONE = 2'b00,
+      LED16 = 2'b01,
+      LED17 = 2'b10,
+      LED_BOTH = 2'b11
+      } led_sel_t;
 
 //led_rgf register types
   typedef struct packed {
-    led_sel_t led_sel_q; 
-    logic led16_on_q;
-    logic led17_on_q;
-    logic led16_cie_on_q;
-    logic led17_cie_on_q;
+    logic led17_cie_on_q;   // [5]
+    logic led16_cie_on_q;   // [4]
+    logic led17_on_q;       // [3]
+    logic led16_on_q;       // [2]
+    led_sel_t led_sel_q;    // [1:0]
   } led_ctrl_reg_t;
 
   typedef struct packed {
     logic [1:0] pattern;
   } led_pattern_reg_t;
+
+//led_rgf reset values 
+  parameter led_ctrl_reg_t LED_CTRL_RST = '{led17_cie_on_q: 1'b1, led16_cie_on_q: 1'b1,
+                                            led17_on_q: 1'b1, led16_on_q: 1'b1, led_sel_q: LED16};
+  parameter led_pattern_reg_t LED_PATTERN_RST = '{pattern: 2'h0};
 
 //pwm_rgf register types
 typedef struct packed{
@@ -49,7 +57,7 @@ typedef struct packed{
   logic [12:0] out_freq;     // [12:0]
 } lut_reg_t;
 
-//pwm_rgf parametera
+//pwm_rgf parameter
   parameter pwm_cfg_reg_t PWM_CFG_RST = '{sweep_time: 16'h0000, time_slots: 16'h0400};
   parameter lut_reg_t LUT_RST = '{init_phase: 9'h000, magnitude: 2'h0, out_freq: 13'h03E8};
   parameter int LUT_DATA_W = 24;

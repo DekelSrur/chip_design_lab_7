@@ -1,11 +1,8 @@
 `timescale 1ns/1ps
 
-interface rgf_bus_if import pkg_rgf::*;
-#(
-
-  parameter int DATA_W = 32
-  
-);
+interface rgf_bus_if
+  import pkg_rgf::*;
+();
   
   logic wr_en;
   regs_addr_t addr;

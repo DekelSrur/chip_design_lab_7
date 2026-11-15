@@ -6,23 +6,20 @@ module debouncer #(
     input logic clk,
     input logic rst_n,
     input logic [4:0] btn_in,
-    input logic [15:0] sw_in,
 
-    output logic [4:0] btn_db,
-    output logic [15:0] sw_db
+    output logic [4:0] btn_db
 );
 
 //localparam
-    localparam N = 21;                                                      //5 button + 16 switchers
+    localparam N = 5;                                                      //5 button + 16 switchers
     localparam CW = (DEBOUNCE_CYCLES > 1) ? $clog2(DEBOUNCE_CYCLES) : 1;    //counter width
 
 //inputs
     logic [N-1:0] din;
     logic [N-1:0] dout;
 
-    assign din    = {sw_in, btn_in};
+    assign din = btn_in;
     assign btn_db = dout[4:0];
-    assign sw_db  = dout[N-1:5];
 
 //per bit debouncer: each input has its on counter
     genvar i;
