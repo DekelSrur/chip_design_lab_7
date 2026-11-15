@@ -8,7 +8,7 @@ module pwm_ctrl
 )(
     input logic clk, rst_n,
     input logic [N_CH-1:0][PWM_W-1:0] duty,     //{R, G, B} duty cycles
-    input logic led_sel,                        //1 = LED16, 0 = LED17
+    input logic [1:0] led_on,                        //1 = LED16, 0 = LED17
 
     output logic [N_CH-1:0] led16,              
     output logic [N_CH-1:0] led17               
@@ -21,7 +21,7 @@ module pwm_ctrl
     logic [N_LEDS-1:0] led_en;                 //which led is active  
     logic [N_LEDS-1:0][N_CH-1:0] pwm_q;        //registered PWM outputs (glitch-free pins)
 
-    assign led_en = {led_sel, ~led_sel};
+    assign led_en = {led_on[0], led_on[1]};
 
 //free-running counter - wraps naturally every PWM_SLOTS clocks (power of 2)
     always_ff @(posedge clk or negedge rst_n) begin

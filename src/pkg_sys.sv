@@ -12,9 +12,10 @@ package pkg_sys;
     parameter int N_CH = 3;                             //{R, G, B}
 
 //color-pwm path
-    parameter int PWM_SLOTS_DEF = 1024;                 //PWM resolution: 512 .. 8192, power of 2
-    parameter int GAMMA_W = 10;                         //black_magic_box entry width
-    parameter int CIE_SCALE_DEF = 128;                  //brightness, out of 256
+    parameter int N_LED = 2;                            //index 0 = LED16, index 1 = LED17
+    parameter int PWM_SLOTS_DEF = 1024;                 //PWM resolution after reset (PWM_CFG.time_slots)
+    parameter int PWM_SLOTS_MAX = 8192;                 //largest legal PWM_CFG.time_slots
+    parameter int DUTY_W = $clog2(PWM_SLOTS_MAX);       //duty / PWM counter width: 13 bits
 
 //display selectiom
     typedef enum logic [1:0] {T0, T1, T2, T3} digits_t; //T0=B, T1=G, T2=R, T3=LED

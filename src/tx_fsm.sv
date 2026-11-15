@@ -61,7 +61,7 @@ module tx_fsm
             end
             default: next = IDLE; 
         endcase
-    
+            
 //{R A2 A1 A0 , V 00 DH1 DH0 , V 00 DL1 DL0}
         unique case (next_idx)                 
             4'd0 : msg_byte = "{";
