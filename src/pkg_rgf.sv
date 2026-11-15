@@ -62,6 +62,25 @@ typedef struct packed{
   parameter lut_reg_t LUT_RST = '{init_phase: 9'h000, magnitude: 2'h0, out_freq: 13'h03E8};
   parameter int LUT_DATA_W = 24;
 
+  //sys_rgf register types
+  parameter int SYS_CTRL_DATA_W   = 2;
+  parameter int SYS_STATUS_DATA_W = 2;
+
+  typedef struct packed {
+    logic enable_q;             // [1] DDS + PWM enable
+    logic sw_rst_q;             // [0] SW reset, self-clearing (reads 0)
+  } sys_ctrl_reg_t;
+
+  typedef struct packed {
+    logic ro_wr_err_q;          // [1] write to a read-only register (sticky)
+    logic invalid_addr_err_q;   // [0] access to an unmapped address (sticky)
+  } sys_status_reg_t;
+
+//sys_rgf reset values
+  parameter sys_ctrl_reg_t     SYS_CTRL_RST    = '{enable_q: 1'b1, sw_rst_q: 1'b0};
+  parameter sys_status_reg_t   SYS_STATUS_RST  = '{ro_wr_err_q: 1'b0, invalid_addr_err_q: 1'b0};
+  parameter logic [DATA_W-1:0] SYS_VERSION_VAL = 32'h0007_0001;    // lab 7, revision 1
+  
   typedef enum logic [ADDR_W-1:0] {
                 LED_CTRL      = 24'h0000,
                 LED_PATTERN   = 24'h0004,
