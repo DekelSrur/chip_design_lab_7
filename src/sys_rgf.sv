@@ -15,7 +15,7 @@ module sys_rgf
     output logic sw_rst,                        // to sync, 1-cycle pulse
     output logic enable,                        // to dds_ctrl, pwm_ctrl
     rgf_bus_if.rw_r0c_slave bus               // interface with addr_xbar
-
+);
     sys_ctrl_reg_t   sys_ctrl_reg;
     sys_status_reg_t sys_status_reg;
     logic sys_ctrl_sel, sys_status_sel, sys_version_sel;
