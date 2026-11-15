@@ -14,8 +14,7 @@ module sys_rgf
     input  logic ro_wr_evt,                     // from addr_xbar, 1-cycle pulse
     output logic sw_rst,                        // to sync, 1-cycle pulse
     output logic enable,                        // to dds_ctrl, pwm_ctrl
-    rgf_bus_if.rw_slave bus                     // interface with addr_xbar
-);
+    rgf_bus_if.rw_r0c_slave bus               // interface with addr_xbar
 
     sys_ctrl_reg_t   sys_ctrl_reg;
     sys_status_reg_t sys_status_reg;

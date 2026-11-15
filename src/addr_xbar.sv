@@ -19,7 +19,7 @@ module addr_xbar
     rgf_bus_if.rw_master led_bus,               //led rgf read & write
     rgf_bus_if.rw_master pwm_bus,               //pwm_rgf read & write
     rgf_bus_if.ro_master cnt_bus,               //cnt_rgf read only
-    rgf_bus_if.rw_master sys_bus                //sys_rgf read & write
+    rgf_bus_if.rw_r0c_master sys_bus            //sys_rgf read & write
 );
 
     logic [N_RGF-1:0] slave_sel;
@@ -51,12 +51,12 @@ module addr_xbar
     assign led_bus.addr = regs_addr_t'(master_addr);
     assign led_bus.wdata = master_wdata;
     assign led_bus.wr_en = master_wen && slave_sel[LED_IDX];
-    assign led_bus.rd_en = master_ren && slave_sel[LED_IDX];
+    
 
     assign pwm_bus.addr = regs_addr_t'(master_addr);
     assign pwm_bus.wdata = master_wdata;
     assign pwm_bus.wr_en = master_wen && slave_sel[PWM_IDX];
-    assign pwm_bus.rd_en = master_ren && slave_sel[PWM_IDX];
+    
 
     assign cnt_bus.addr = regs_addr_t'(master_addr); //read only - no data and no wr_en
 
