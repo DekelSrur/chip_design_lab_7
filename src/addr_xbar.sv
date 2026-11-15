@@ -7,23 +7,19 @@ module addr_xbar
     input logic [DATA_W-1:0] master_wdata,      //write data (DH1 DH0 DL1 DL0)
     input logic master_wen,                     //write command
     input logic master_ren,                     //read command
-    input logic [DATA_W-1:0] sys_rdata,
+    
 
     output logic master_rvalid,
     output logic [ADDR_W-1:0] master_raddr,     //adddress that wsa read
     output logic [DATA_W-1:0] master_rdata,     //value that was read
     output logic invalid_addr_evt,
     output logic ro_wr_evt,
-    //sys_rgf ports
-    output logic sys_sel,
-    output logic sys_wen,
-    output logic sys_ren,
-    output logic [ADDR_W-1:0] sys_addr,
-    output logic [DATA_W-1:0] sys_wdata,
+
 
     rgf_bus_if.rw_master led_bus,               //led rgf read & write
     rgf_bus_if.rw_master pwm_bus,               //pwm_rgf read & write
-    rgf_bus_if.ro_master cnt_bus
+    rgf_bus_if.ro_master cnt_bus,               //cnt_rgf read only
+    rgf_bus_if.rw_r0c_master sys_bus            //sys_rgf read & write
 );
 
     logic [N_RGF-1:0] slave_sel;
@@ -55,18 +51,19 @@ module addr_xbar
     assign led_bus.addr = regs_addr_t'(master_addr);
     assign led_bus.wdata = master_wdata;
     assign led_bus.wr_en = master_wen && slave_sel[LED_IDX];
+    
 
     assign pwm_bus.addr = regs_addr_t'(master_addr);
     assign pwm_bus.wdata = master_wdata;
     assign pwm_bus.wr_en = master_wen && slave_sel[PWM_IDX];
+    
 
     assign cnt_bus.addr = regs_addr_t'(master_addr); //read only - no data and no wr_en
 
-    assign sys_sel = slave_sel[SYS_IDX];
-    assign sys_wen = master_wen;
-    assign sys_ren = master_ren;
-    assign sys_addr = master_addr;
-    assign sys_wdata = master_wdata;
+    assign sys_bus.addr  = regs_addr_t'(master_addr);
+    assign sys_bus.wdata = master_wdata;
+    assign sys_bus.wr_en = master_wen && slave_sel[SYS_IDX];
+    assign sys_bus.rd_en = master_ren && slave_sel[SYS_IDX];
 
     //read selected rgf to master
     always_comb begin: rdata_mux
@@ -74,7 +71,7 @@ module addr_xbar
             slave_sel[LED_IDX]: master_rdata = led_bus.rdata;
             slave_sel[PWM_IDX]: master_rdata = pwm_bus.rdata;
             slave_sel[CNT_IDX]: master_rdata = cnt_bus.rdata;
-            slave_sel[SYS_IDX]: master_rdata = sys_rdata;
+            slave_sel[SYS_IDX]: master_rdata = sys_bus.rdata;
             default: master_rdata = '0;             //invalid address reads as 0
         endcase
     end

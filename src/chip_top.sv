@@ -51,10 +51,7 @@ module chip_top
     rgf_bus_if led_bus ();
     rgf_bus_if pwm_bus ();
     rgf_bus_if cnt_bus ();
-    logic sys_sel, sys_wen, sys_ren;
-    logic [ADDR_W-1:0] sys_addr;
-    logic [DATA_W-1:0] sys_wdata, sys_rdata;
-    logic sys_err;                          //not used: addr_xbar checks the address itself
+    rgf_bus_if sys_bus ();                         
 //tx path
     logic tx_start;
     logic tx_busy;                          //not used: tx_fsm works with tx_done
@@ -121,9 +118,7 @@ module chip_top
         .master_wen(master_wen), .master_ren(master_ren),
         .master_rvalid(master_rvalid), .master_raddr(master_raddr), .master_rdata(master_rdata),
         .invalid_addr_evt(invalid_addr_evt), .ro_wr_evt(ro_wr_evt),
-        .sys_sel(sys_sel), .sys_wen(sys_wen), .sys_ren(sys_ren),
-        .sys_addr(sys_addr), .sys_wdata(sys_wdata), .sys_rdata(sys_rdata),
-        .led_bus(led_bus), .pwm_bus(pwm_bus), .cnt_bus(cnt_bus)
+        .led_bus(led_bus), .pwm_bus(pwm_bus), .cnt_bus(cnt_bus), .sys_bus(sys_bus)
     );
 
 //register files
@@ -147,11 +142,10 @@ module chip_top
     );
 
     sys_rgf u_sys_rgf (
-        .clk(clk), .rst_n(hw_rst_n),            
-        .sel(sys_sel), .wen(sys_wen), .ren(sys_ren),
-        .addr(sys_addr), .wdata(sys_wdata), .rdata(sys_rdata), .err(sys_err),
+        .clk(clk), .rst_n(hw_rst_n),
         .invalid_addr_evt(invalid_addr_evt), .ro_wr_evt(ro_wr_evt),
-        .sw_rst(sw_rst), .enable(enable)
+        .sw_rst(sw_rst), .enable(enable),
+        .bus(sys_bus)
     );
 
 //tx path 
