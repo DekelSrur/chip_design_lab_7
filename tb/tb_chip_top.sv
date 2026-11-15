@@ -98,8 +98,8 @@ module tb_chip_top;
                     $display("[%0t] FAILED: color report while tx_fsm is busy", $time);
                     errors++;
                 end
-                if (dut.trns_msg !== dut.duty) begin
-                    $display("[%0t] FAILED: trns_msg=%h, duty=%h", $time, dut.trns_msg, dut.duty);
+                if (dut.trns_msg !== dut.duty[0]) begin
+                    $display("[%0t] FAILED: trns_msg=%h, duty=%h", $time, dut.trns_msg, dut.duty[0]);
                     errors++;
                 end
             end
@@ -146,7 +146,8 @@ module tb_chip_top;
     task automatic check_color(input logic [23:0] exp_rgb, input string name);
         int nb = 0;
         for (int c = 0; c < N_CH; c++)
-            if (dut.duty[c] !== PWM_W'(exp_duty(exp_rgb[c*BYTE +: BYTE]))) nb++;
+            for (int l = 0; l < N_LEDS; l++)
+                if (dut.duty[l][c] !== PWM_W'(exp_duty(exp_rgb[c*BYTE +: BYTE]))) nb++;
         if (dut.apply_rgb !== exp_rgb || nb != 0) begin
             $display("%s FAILED: applyRGB=%h (exp %h), %0d wrong duty values",
                      name, dut.apply_rgb, exp_rgb, nb);
@@ -154,7 +155,7 @@ module tb_chip_top;
         end
         else
             $display("%s PASSED: applyRGB=%h, duty R=%0d G=%0d B=%0d",
-                     name, exp_rgb, dut.duty[2], dut.duty[1], dut.duty[0]);
+                     name, exp_rgb, dut.duty[0][2], dut.duty[0][1], dut.duty[0][0]);
     endtask : check_color
 
     // count high cycles of every RGB pin over one full PWM period

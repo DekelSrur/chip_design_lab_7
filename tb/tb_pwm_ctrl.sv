@@ -9,7 +9,7 @@ module tb_pwm_ctrl;
     //DUT signals - 4-state logic, so X/Z from the DUT stays visible
     logic clk = 0;
     logic rst_n = 0;
-    logic [N_CH-1:0][PWM_W-1:0] duty = '0;  // {R, G, B}
+    logic [N_LEDS-1:0][N_CH-1:0][PWM_W-1:0] duty = '0;  // per LED {R, G, B}, [0]=LED16 [1]=LED17
     logic led_sel = 1;                      // 1 = LED16, 0 = LED17
     logic [N_CH-1:0] led16, led17;          // {R, G, B}
 
@@ -65,7 +65,7 @@ module tb_pwm_ctrl;
         int n_bad;
         exp = '{b, g, r};                   // index 0 = B, 1 = G, 2 = R
         @(negedge clk);
-        duty    = {PWM_W'(r), PWM_W'(g), PWM_W'(b)};
+        duty    = {2{PWM_W'(r), PWM_W'(g), PWM_W'(b)}};   // same values on both LEDs
         led_sel = sel;
         wait_period_end();
         measure(hi16, hi17);
@@ -105,13 +105,16 @@ module tb_pwm_ctrl;
 
         //test 4: duty changed in the middle of a period -> current period keeps the old value
         @(negedge clk);
-        duty = {PWM_W'(200), PWM_W'(0), PWM_W'(0)};
+        duty = {2{PWM_W'(200), PWM_W'(0), PWM_W'(0)}};
         led_sel = 1'b1;
         wait_period_end();
         do @(negedge clk); while (dut.cnt !== PWM_W'(1));
         cnt_hi = 0;
         for (int i = 0; i < SLOTS; i++) begin
-            if (i == SLOTS/2) duty[2] = PWM_W'(800);    // change mid-period
+            if (i == SLOTS/2) begin                     // change mid-period
+                duty[0][2] = PWM_W'(800);
+                duty[1][2] = PWM_W'(800);
+            end
             cnt_hi += (led16[2] === 1'b1);
             @(negedge clk);
         end
@@ -128,6 +131,24 @@ module tb_pwm_ctrl;
         repeat (20)
             check_duty($urandom_range(SLOTS-1), $urandom_range(SLOTS-1),
                        $urandom_range(SLOTS-1), 1'($urandom_range(1)), "Test 5");
+
+        // test 6: different duty per LED - each LED uses only its own values
+        for (int sel = 1; sel >= 0; sel--) begin
+            @(negedge clk);
+            duty[0] = {PWM_W'(300), PWM_W'(20), PWM_W'(900)};   // LED16
+            duty[1] = {PWM_W'(50), PWM_W'(600), PWM_W'(5)};     // LED17
+            led_sel = 1'(sel);
+            wait_period_end();
+            measure(hi16, hi17);
+            if (sel ? (hi16[2] != 300 || hi16[1] != 20 || hi16[0] != 900 || (hi17[2] | hi17[1] | hi17[0]) != 0)
+                    : (hi17[2] != 50 || hi17[1] != 600 || hi17[0] != 5 || (hi16[2] | hi16[1] | hi16[0]) != 0)) begin
+                $display("Test 6 FAILED: sel=%0d LED16=%0d/%0d/%0d LED17=%0d/%0d/%0d",
+                         sel, hi16[2], hi16[1], hi16[0], hi17[2], hi17[1], hi17[0]);
+                errors++;
+            end
+            else
+                $display("Test 6 PASSED: %s uses its own duty set", sel ? "LED16" : "LED17");
+        end
 
         if (errors == 0) $display("ALL TESTS PASSED");
         else $display("%0d TEST(S) FAILED", errors);

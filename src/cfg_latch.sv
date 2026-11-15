@@ -1,6 +1,10 @@
 `timescale 1ns/1ps
 
-module cfg_latch (
+module cfg_latch
+    import pkg_sys::*;
+#(
+    parameter int HOLD_CYCLES = CLK_FREQ_HZ  //btn hold time before latching: 1 s (small value in the TB)
+)(
     input logic clk,
     input logic rst_n,
     input logic btn_db,
@@ -14,14 +18,18 @@ module cfg_latch (
     output logic [1:0] count_sel
 );
 
-    logic btn_d;                    //button value from previous clk
-    logic press;                    //one cycle pulse on a new press
+    localparam int CW = $clog2(HOLD_CYCLES + 1);
 
-    assign press = btn_db & ~btn_d; //rising edge detector
+    logic [CW-1:0] hold_cnt;        //how long the button is held
+    logic fired;                    //already latched during this press
+    logic press;                    //one cycle pulse: button held for 1 s
+
+    assign press = btn_db && !fired && (hold_cnt == CW'(HOLD_CYCLES - 1));
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            btn_d <= 1'b0;
+            hold_cnt <= '0;
+            fired <= 1'b0;
             start <= 1'b0;
             byte_val <= '0;
             speed_sel <= '0;
@@ -29,10 +37,17 @@ module cfg_latch (
         end
 
         else begin
-            btn_d <= btn_db;
             start <= 1'b0;          //defualt mode
 
-            if (press && !busy && !rx_mode) begin //new press while tx is idle and tx mode is selected
+            //hold timer: counts while the button is held, re-arms on release
+            if (!btn_db) begin
+                hold_cnt <= '0;
+                fired <= 1'b0;
+            end
+            else if (press) fired <= 1'b1;
+            else if (!fired) hold_cnt <= hold_cnt + 1'b1;
+
+            if (press && !busy && !rx_mode) begin //held for 1 s while tx is idle and tx mode is selected
                 start <= 1'b1;
                 byte_val <= sw_db[7:0];
                 speed_sel <= sw_db[9:8];

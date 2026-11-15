@@ -59,7 +59,8 @@ module chip_top #(
     logic [7:0] dig_sel;
     logic [23:0] edit_rgb;                  //{R, G, B} being edited -> display
     logic edit_led;                         //LED being edited -> display
-    logic [2:0][PWM_W-1:0] duty;
+    logic [pkg_sys::N_LEDS-1:0][pkg_sys::N_CH-1:0][PWM_W-1:0] duty;   //per LED, [0]=LED16 [1]=LED17
+    logic [pkg_sys::N_LEDS-1:0] cie_en;              //from led_rgf, [0]=LED16 [1]=LED17
     logic color_start;
     logic [3*PWM_W-1:0] trns_msg;
     // display
@@ -127,8 +128,10 @@ module chip_top #(
         .edit_RGB(edit_rgb), .edit_led(edit_led)
     );
 
+    assign cie_en = '1;                     //CIE on for both LEDs until led_rgf is connected
+
     color_translate #(.PWM_SLOTS(PWM_SLOTS), .CIE_SCALE(CIE_SCALE)) u_color_translate (
-        .clk(clk), .rst_n(rst_n), .applyRGB(apply_rgb), .busy(busy),
+        .clk(clk), .rst_n(rst_n), .applyRGB(apply_rgb), .cie_en(cie_en), .busy(busy),
         .duty(duty), .color_start(color_start), .trns_msg(trns_msg)
     );
 

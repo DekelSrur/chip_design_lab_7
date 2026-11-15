@@ -10,6 +10,7 @@ package pkg_sys;
  //data
     parameter int BYTE = 8;                             //one sRGB channel / UART byte
     parameter int N_CH = 3;                             //{R, G, B}
+    parameter int N_LEDS = 2;                           //[0] = LED16, [1] = LED17
 
 //color-pwm path
     parameter int PWM_SLOTS_DEF = 1024;                 //PWM resolution: 512 .. 8192, power of 2
