@@ -10,9 +10,10 @@ module param_ctrl
     
     output logic [23:0] applyRGB,                               // {8bit R, 8bit G, 8bit B}
     output logic led_sel,                              
-    output logic [7:0] dig_sel,                                  // {[1:0]T3, [1:0]T2, [1:0]T1, [1:0]T0}
+    output logic [7:0] dig_sel,                                 // {[1:0]T3, [1:0]T2, [1:0]T1, [1:0]T0}
     output logic [23:0] edit_RGB,                               // {R, G, B} being edited (to the display)
-    output logic edit_led                                     // LED being edited: 1 = LED16, 0 = LED17
+    output logic edit_led,                                      // LED being edited: 1 = LED16, 0 = LED17
+    output logic hw_wr_en                                       // to led_rgf, enables editing the register led_reg's leds fields
 );
 
     typedef enum logic [1:0] {IDLE, ACTIVATED, PRESSED} state_t;
@@ -78,8 +79,9 @@ module param_ctrl
             applyRGB <= 24'd0;
             current_digits <= T0;
             current_RGB <= 24'd0;
-            current_led <=0;
-            led_sel <=0;
+            current_led <= '0;
+            led_sel <= '0;
+            hw_wr_en <= '0;
         end
         else if (RGB_wr_en) begin                                 // update the color to the rx message
             current_RGB <= {row_index, col_index, pixel_value};
@@ -109,9 +111,10 @@ module param_ctrl
                             else if(current_RGB[BYTE * current_digits +: BYTE] != '1) 
                                     current_RGB[BYTE * current_digits +: BYTE] <= current_RGB[BYTE * current_digits +: BYTE] + BYTE'(1);
                         end
-                CENTER  : begin
+                CENTER  : begin                       // sends the data to the leds and the led_rgf
                             led_sel <= current_led;
                             applyRGB <= current_RGB;
+                            hw_wr_en <= '1;     
                         end
                         default: ;
             endcase
