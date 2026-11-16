@@ -42,7 +42,7 @@ package pkg_rgf;
 
 //led_rgf reset values 
   parameter led_ctrl_reg_t LED_CTRL_RST = '{led17_cie_on_q: 1'b1, led16_cie_on_q: 1'b1,
-                                            led17_on_q: 1'b1, led16_on_q: 1'b1, led_sel_q: LED16};
+                                            led17_on_q: 1'b1, led16_on_q: 1'b0, led_sel_q: LED17};
   parameter led_pattern_reg_t LED_PATTERN_RST = '{pattern: 2'h0};
 
 //pwm_rgf register types
@@ -50,6 +50,7 @@ typedef struct packed{
   logic [15:0] sweep_time;
   logic [15:0] time_slots;
 } pwm_cfg_reg_t;
+
 
 typedef struct packed{
   logic [8:0]  init_phase;   // [23:15]
