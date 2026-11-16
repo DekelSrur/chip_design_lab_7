@@ -34,23 +34,25 @@ module parser
     logic [DATA_W-1:0] current_data, next_data; //data bytes of a W command
     logic is_digit, next_led, current_led;
     logic in_range;                             //all three colour values <= 255
-    logic addr_is_digits;                       //the 3 bytes after 'R' were ASCII digits
-    logic bin_field;                            //the next byte is binary (address/data)
+    logic addr_is_digits;                       //the 3 characters after 'R' were decimal digits (0-9)
+    logic bin_field;                            //the next byte is binary (write data)
+    logic is_hex;                               //rx_byte is an ASCII hex digit: 0-9, A-F (a-f also accepted)
+    logic [3:0] hex_val;                        //value of that hex digit
 
 
     assign is_digit = rx_byte >= "0" && rx_byte <= "9";
+    assign is_hex   = is_digit || (rx_byte >= "A" && rx_byte <= "F") || (rx_byte >= "a" && rx_byte <= "f");
+    assign hex_val  = is_digit ? rx_byte[3:0] : 4'(rx_byte[3:0] + 4'd9);   //"A"/"a" = 0x41/0x61 -> 1 + 9 = 10
     assign in_range = (current_RGB[2] <= 10'd255) && (current_RGB[1] <= 10'd255) && (current_RGB[0] <= 10'd255);
 
-    //after 'R' the same 3 bytes are kept both as a raw address and as a decimal value;
-    //byte 5 decides: "}" = read command, "," = colour message (only if they were digits)
-    assign addr_is_digits = (current_addr[23:16] >= "0" && current_addr[23:16] <= "9") &&
-                            (current_addr[15:8]  >= "0" && current_addr[15:8]  <= "9") &&
-                            (current_addr[7:0]   >= "0" && current_addr[7:0]   <= "9");
+    //after 'R' the 3 characters are kept both as a hex address (one digit each) and as a decimal value;
+    //byte 5 decides: "}" = read command, "," = colour message (only if they were 0-9).
+    //hex digits A-F give nibbles 10-15, so "all nibbles <= 9" means all three were decimal digits
+    assign addr_is_digits = (current_addr[11:8] <= 4'd9) && (current_addr[7:4] <= 4'd9) && (current_addr[3:0] <= 4'd9);
 
-    //in these states the next byte is binary, so a "{" value must not restart the message
-    assign bin_field = (current_state == RED)  || (current_state == R1)   || (current_state == R2)  ||
-                       (current_state == WR)   || (current_state == WA2)  || (current_state == WA1) ||
-                       (current_state == WZH)  || (current_state == WDH1) ||
+    //in these states the next byte is binary write data, so a "{" value must not restart the message
+    //(the address is ASCII hex now, so it can never be "{")
+    assign bin_field = (current_state == WZH)  || (current_state == WDH1) ||
                        (current_state == WZL)  || (current_state == WDL1);
 
     always_ff @(posedge clk or negedge rst_n) begin
@@ -140,23 +142,25 @@ module parser
         else case (current_state)
             IDLE        :  if(rx_byte == "{")            next_state = MSG_START;
             MSG_START   : begin 
+                            next_addr = '0;                                //address: 3 hex digits -> 0x000..0xFFF
                             if (rx_byte == "R")      next_state = RED;
                             else if (rx_byte == "L")   next_state = LED;
                             else if (rx_byte == "W") next_state = WR;
                         end
-            RED         : begin
-                              next_state       = R1;
-                              next_addr[23:16] = rx_byte;
+            //read address (hex) or red value (decimal): accepted only if the character is a hex digit
+            RED         : if (is_hex) begin
+                              next_state = R1;
+                              next_addr  = {current_addr[ADDR_W-5:0], hex_val};
                               if (is_digit) next_RGB[2] = 10'(rx_byte[3:0] * 100);
                           end
-            R1          : begin
-                              next_state      = R2;
-                              next_addr[15:8] = rx_byte;
+            R1          : if (is_hex) begin
+                              next_state = R2;
+                              next_addr  = {current_addr[ADDR_W-5:0], hex_val};
                               if (is_digit) next_RGB[2] = current_RGB[2] + 10'(rx_byte[3:0] * 10);
                           end
-            R2          : begin
-                              next_state     = R3;
-                              next_addr[7:0] = rx_byte;
+            R2          : if (is_hex) begin
+                              next_state = R3;
+                              next_addr  = {current_addr[ADDR_W-5:0], hex_val};
                               if (is_digit) next_RGB[2] = current_RGB[2] + 10'(rx_byte[3:0]);
                           end
             R3          : begin
@@ -206,9 +210,10 @@ module parser
             L3          : if (rx_byte == "}") next_state = LED_MSG_END;
 
             //write command: {W A2 A1 A0 , V 00 DH1 DH0 , V 00 DL1 DL0}
-            WR          : begin next_state = WA2;  next_addr[23:16] = rx_byte; end
-            WA2         : begin next_state = WA1;  next_addr[15:8]  = rx_byte; end
-            WA1         : begin next_state = WA0;  next_addr[7:0]   = rx_byte; end
+            //A2 A1 A0 = 3 ASCII hex digits (address 0x000..0xFFF), accepted only if each is a hex digit
+            WR          : if (is_hex) begin next_state = WA2; next_addr = {current_addr[ADDR_W-5:0], hex_val}; end
+            WA2         : if (is_hex) begin next_state = WA1; next_addr = {current_addr[ADDR_W-5:0], hex_val}; end
+            WA1         : if (is_hex) begin next_state = WA0; next_addr = {current_addr[ADDR_W-5:0], hex_val}; end
             WA0         : if (rx_byte == ",")   next_state = W_COMMA1;
             W_COMMA1    : if (rx_byte == "V")   next_state = WVH;
             WVH         : if (rx_byte == 8'h00) next_state = WZH;

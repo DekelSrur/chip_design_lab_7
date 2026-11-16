@@ -35,6 +35,12 @@ module tx_fsm
     logic last_byte;                            //byte_idx is the closing "}"
     logic [7:0] msg_byte;                       //message byte number next_idx
 
+    //one hex digit (0..15) -> its ASCII character "0".."9", "A".."F"
+    //(the address is echoed as 3 hex characters, the same way the parser reads it)
+    function automatic logic [7:0] hex_char(input logic [3:0] v);
+        return (v <= 4'd9) ? 8'("0") + 8'(v) : 8'("A") + 8'(v) - 8'd10;
+    endfunction
+
 //block 1 - state register
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) curr_st <= IDLE;
@@ -63,12 +69,13 @@ module tx_fsm
         endcase
             
 //{R A2 A1 A0 , V 00 DH1 DH0 , V 00 DL1 DL0}
+//A2 A1 A0 = address as 3 ASCII hex characters (address 0x000..0xFFF), data bytes are binary
         unique case (next_idx)                 
             4'd0 : msg_byte = "{";
             4'd1 : msg_byte = "R";
-            4'd2 : msg_byte = addr_q[23:16];    //A2
-            4'd3 : msg_byte = addr_q[15:8];     //A1
-            4'd4 : msg_byte = addr_q[7:0];      //A0
+            4'd2 : msg_byte = hex_char(addr_q[11:8]);   //A2
+            4'd3 : msg_byte = hex_char(addr_q[7:4]);    //A1
+            4'd4 : msg_byte = hex_char(addr_q[3:0]);    //A0
             4'd5 : msg_byte = ",";
             4'd6 : msg_byte = "V";
             4'd7 : msg_byte = 8'h00;
