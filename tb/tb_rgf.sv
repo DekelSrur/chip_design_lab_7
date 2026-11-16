@@ -138,7 +138,7 @@ module tb_rgf;
 
 //load the reference model with the reset value of every register (as in the register file)
     task automatic set_reset_values();
-        exp_val[LED_CTRL]      = 32'h0000_003D;
+        exp_val[LED_CTRL]      = 32'h0000_003A;
         exp_val[LED_PATTERN]   = 32'h0000_0000;
         exp_val[PWM_CFG]       = 32'h0000_0400;
         exp_val[RED_LUT]       = 32'h0000_03E8;
@@ -167,7 +167,7 @@ module tb_rgf;
         $display("Test 1: reset values");
         set_reset_values();
         check_all();
-        out_check(1, led_sel === 2'b01 && cie_on === 1'b1 && led_on === 2'b11 && pattern === 2'h0);
+        out_check(1, led_sel === 2'b10 && cie_on === 1'b1 && led_on === 2'b10 && pattern === 2'h0);
         out_check(1, time_slots === 16'd1024 && sweep_time === 16'd0 && enable === 1 && sw_rst === 0);
         out_check(1, lut_cfg[2].out_freq === 13'd1000 && lut_cfg[1].out_freq === 13'd1000 &&
                      lut_cfg[0].out_freq === 13'd1000);
