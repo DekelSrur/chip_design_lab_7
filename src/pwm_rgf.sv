@@ -13,7 +13,7 @@ module pwm_rgf
 
     output logic [15:0] time_slots,     //to pwm_ctrl
     output logic [15:0] sweep_time,     //to dds_ctrl
-    output lut_reg_t [2:0] lut_cfg,           //to dds_ctrl:[2]=R,[1]=G,[0]=B
+    output lut_reg_t [2:0] lut_cfg,     //to dds_ctrl:[2]=R,[1]=G,[0]=B
     
     rgf_bus_if.rw_slave bus             //interface with addr_xbar
 );    
