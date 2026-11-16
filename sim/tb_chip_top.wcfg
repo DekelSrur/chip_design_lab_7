@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wave_config>
+   <wave_state>
+   </wave_state>
+   <db_ref_list>
+      <db_ref path="tb_chip_top_behav.wdb" id="1">
+         <top_modules>
+            <top_module name="glbl" />
+            <top_module name="pkg_rgf" />
+            <top_module name="pkg_sys" />
+            <top_module name="tb_chip_top" />
+         </top_modules>
+      </db_ref>
+   </db_ref_list>
+   <zoom_setting>
+      <ZoomStartTime time="0 ps"></ZoomStartTime>
+      <ZoomEndTime time="3,249,000,000 ps"></ZoomEndTime>
+      <Cursor1Time time="0 ps"></Cursor1Time>
+   </zoom_setting>
+   <column_width_setting>
+      <NameColumnWidth column_width="250"></NameColumnWidth>
+      <ValueColumnWidth column_width="105"></ValueColumnWidth>
+   </column_width_setting>
+   <WVObjectSize size="49" />
+   <wave_markers>
+      <marker time="6600000" label="1" />
+      <marker time="77320000" label="2" />
+      <marker time="430920000" label="3" />
+      <marker time="927240000" label="4" />
+      <marker time="1050116000" label="5" />
+      <marker time="1140996000" label="6" />
+      <marker time="1385476000" label="7" />
+      <marker time="1915396000" label="8" />
+      <marker time="2463236000" label="9" />
+      <marker time="2958916000" label="10" />
+   </wave_markers>
+   <wvobject type="divider" fp_name="divider2906">
+      <obj_property name="label">Pins</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/cpu_resetn" type="logic">
+      <obj_property name="ElementShortName">cpu_resetn</obj_property>
+      <obj_property name="ObjectShortName">cpu_resetn</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/uart_rxd" type="logic">
+      <obj_property name="ElementShortName">uart_rxd</obj_property>
+      <obj_property name="ObjectShortName">uart_rxd</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/uart_txd" type="logic">
+      <obj_property name="ElementShortName">uart_txd</obj_property>
+      <obj_property name="ObjectShortName">uart_txd</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/led16" type="array">
+      <obj_property name="ElementShortName">led16[2:0]</obj_property>
+      <obj_property name="ObjectShortName">led16[2:0]</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/led17" type="array">
+      <obj_property name="ElementShortName">led17[2:0]</obj_property>
+      <obj_property name="ObjectShortName">led17[2:0]</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
+   </wvobject>
+   <wvobject type="divider" fp_name="divider2912">
+      <obj_property name="label">Bus and state</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/master_wen" type="logic">
+      <obj_property name="ElementShortName">master_wen</obj_property>
+      <obj_property name="ObjectShortName">master_wen</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/master_ren" type="logic">
+      <obj_property name="ElementShortName">master_ren</obj_property>
+      <obj_property name="ObjectShortName">master_ren</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/apply_rgb" type="array">
+      <obj_property name="ElementShortName">apply_rgb[23:0]</obj_property>
+      <obj_property name="ObjectShortName">apply_rgb[23:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/led_on" type="array">
+      <obj_property name="ElementShortName">led_on[1:0]</obj_property>
+      <obj_property name="ObjectShortName">led_on[1:0]</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/pattern" type="array">
+      <obj_property name="ElementShortName">pattern[1:0]</obj_property>
+      <obj_property name="ObjectShortName">pattern[1:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/enable" type="logic">
+      <obj_property name="ElementShortName">enable</obj_property>
+      <obj_property name="ObjectShortName">enable</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/rst_n" type="logic">
+      <obj_property name="ElementShortName">rst_n</obj_property>
+      <obj_property name="ObjectShortName">rst_n</obj_property>
+   </wvobject>
+   <wvobject type="divider" fp_name="divider2920">
+      <obj_property name="label">Test bench</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/rx_n" type="array">
+      <obj_property name="ElementShortName">rx_n[31:0]</obj_property>
+      <obj_property name="ObjectShortName">rx_n[31:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/errors" type="array">
+      <obj_property name="ElementShortName">errors[31:0]</obj_property>
+      <obj_property name="ObjectShortName">errors[31:0]</obj_property>
+      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject type="divider" fp_name="divider2923">
+      <obj_property name="label">RX path: RX_fsm and parser</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/rx_byte" type="array">
+      <obj_property name="ElementShortName">rx_byte[7:0]</obj_property>
+      <obj_property name="ObjectShortName">rx_byte[7:0]</obj_property>
+      <obj_property name="Radix">ASCIIRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/rx_ready" type="logic">
+      <obj_property name="ElementShortName">rx_ready</obj_property>
+      <obj_property name="ObjectShortName">rx_ready</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/u_parser/current_state" type="array">
+      <obj_property name="ElementShortName">current_state[5:0]</obj_property>
+      <obj_property name="ObjectShortName">current_state[5:0]</obj_property>
+   </wvobject>
+   <wvobject type="divider" fp_name="divider2927">
+      <obj_property name="label">Register bus (master side)</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/master_addr" type="array">
+      <obj_property name="ElementShortName">master_addr[23:0]</obj_property>
+      <obj_property name="ObjectShortName">master_addr[23:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/master_wdata" type="array">
+      <obj_property name="ElementShortName">master_wdata[31:0]</obj_property>
+      <obj_property name="ObjectShortName">master_wdata[31:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/master_wen" type="logic">
+      <obj_property name="ElementShortName">master_wen</obj_property>
+      <obj_property name="ObjectShortName">master_wen</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/master_ren" type="logic">
+      <obj_property name="ElementShortName">master_ren</obj_property>
+      <obj_property name="ObjectShortName">master_ren</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/master_rdata" type="array">
+      <obj_property name="ElementShortName">master_rdata[31:0]</obj_property>
+      <obj_property name="ObjectShortName">master_rdata[31:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject type="divider" fp_name="divider2933">
+      <obj_property name="label">TX path: tx_fsm and uart_tx</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/u_tx_fsm/curr_st" type="array">
+      <obj_property name="ElementShortName">curr_st[1:0]</obj_property>
+      <obj_property name="ObjectShortName">curr_st[1:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/u_tx_fsm/byte_idx" type="array">
+      <obj_property name="ElementShortName">byte_idx[3:0]</obj_property>
+      <obj_property name="ObjectShortName">byte_idx[3:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/tx_data" type="array">
+      <obj_property name="ElementShortName">tx_data[7:0]</obj_property>
+      <obj_property name="ObjectShortName">tx_data[7:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/tx_start" type="logic">
+      <obj_property name="ElementShortName">tx_start</obj_property>
+      <obj_property name="ObjectShortName">tx_start</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/tx_done" type="logic">
+      <obj_property name="ElementShortName">tx_done</obj_property>
+      <obj_property name="ObjectShortName">tx_done</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/tx_pkt" type="logic">
+      <obj_property name="ElementShortName">tx_pkt</obj_property>
+      <obj_property name="ObjectShortName">tx_pkt</obj_property>
+   </wvobject>
+   <wvobject type="divider" fp_name="divider2940">
+      <obj_property name="label">Registers</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/u_led_rgf/led_ctrl_reg" type="array">
+      <obj_property name="ElementShortName">led_ctrl_reg</obj_property>
+      <obj_property name="ObjectShortName">led_ctrl_reg</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/u_led_rgf/led_pattern_reg" type="array">
+      <obj_property name="ElementShortName">led_pattern_reg</obj_property>
+      <obj_property name="ObjectShortName">led_pattern_reg</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/u_pwm_rgf/pwm_cfg_reg" type="array">
+      <obj_property name="ElementShortName">pwm_cfg_reg</obj_property>
+      <obj_property name="ObjectShortName">pwm_cfg_reg</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/u_pwm_rgf/lut_reg" type="array">
+      <obj_property name="ElementShortName">lut_reg[2:0]</obj_property>
+      <obj_property name="ObjectShortName">lut_reg[2:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/u_cnt_rgf/rx_pkt_reg" type="array">
+      <obj_property name="ElementShortName">rx_pkt_reg[31:0]</obj_property>
+      <obj_property name="ObjectShortName">rx_pkt_reg[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/u_cnt_rgf/tx_pkt_reg" type="array">
+      <obj_property name="ElementShortName">tx_pkt_reg[31:0]</obj_property>
+      <obj_property name="ObjectShortName">tx_pkt_reg[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/u_cnt_rgf/color_msg_reg" type="array">
+      <obj_property name="ElementShortName">color_msg_reg[31:0]</obj_property>
+      <obj_property name="ObjectShortName">color_msg_reg[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/u_cnt_rgf/cfg_msg_reg" type="array">
+      <obj_property name="ElementShortName">cfg_msg_reg[31:0]</obj_property>
+      <obj_property name="ObjectShortName">cfg_msg_reg[31:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/u_sys_rgf/sys_ctrl_reg" type="array">
+      <obj_property name="ElementShortName">sys_ctrl_reg</obj_property>
+      <obj_property name="ObjectShortName">sys_ctrl_reg</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/u_sys_rgf/sys_status_reg" type="array">
+      <obj_property name="ElementShortName">sys_status_reg</obj_property>
+      <obj_property name="ObjectShortName">sys_status_reg</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
+   </wvobject>
+   <wvobject type="divider" fp_name="divider2951">
+      <obj_property name="label">Display</obj_property>
+      <obj_property name="DisplayName">label</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/dut/digits" type="array">
+      <obj_property name="ElementShortName">digits[31:0]</obj_property>
+      <obj_property name="ObjectShortName">digits[31:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/an" type="array">
+      <obj_property name="ElementShortName">an[7:0]</obj_property>
+      <obj_property name="ObjectShortName">an[7:0]</obj_property>
+      <obj_property name="Radix">BINARYRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_chip_top/seg" type="array">
+      <obj_property name="ElementShortName">seg[6:0]</obj_property>
+      <obj_property name="ObjectShortName">seg[6:0]</obj_property>
+      <obj_property name="Radix">HEXRADIX</obj_property>
+   </wvobject>
+</wave_config>
