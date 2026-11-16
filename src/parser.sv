@@ -25,8 +25,9 @@ module parser
                              BLUE, B1, B2, B3, RGB_MSG_END,
                              LED, L1, L2, L3, LED_MSG_END,
                              RD_MSG_END, 
-                             WR, WADDR, W_COMMA1, WVH, WDH,
-                             W_COMMA2, WVL, WDL, WR_MSG_END} msg_state_t;
+                             WR, WA2, WA1, WA0,
+                             W_COMMA1, WVH, WZH, WDH1, WDH0,
+                             W_COMMA2, WVL, WZL, WDL1, WDL0, WR_MSG_END} msg_state_t;
     msg_state_t current_state, next_state;
     logic [2:0][9:0] current_RGB, next_RGB;
     logic [ADDR_W-1:0] current_addr, next_addr; //address bytes of a W/R command
@@ -34,15 +35,10 @@ module parser
     logic is_digit, next_led, current_led;
     logic in_range;                             //all three colour values <= 255
     logic addr_is_digits;                       //the 3 bytes after 'R' were ASCII digits
-    logic bin_field;                            //the next byte is binary (read address)
-    logic is_hex;                               //rx_byte is an ASCII hex digit: 0-9, A-F (a-f also accepted)
-    logic [3:0] hex_val;                        //value of that hex digit
-    logic [2:0] hex_cnt, next_hex_cnt;          //hex digits received in the current write field
+    logic bin_field;                            //the next byte is binary (address/data)
 
 
     assign is_digit = rx_byte >= "0" && rx_byte <= "9";
-    assign is_hex   = is_digit || (rx_byte >= "A" && rx_byte <= "F") || (rx_byte >= "a" && rx_byte <= "f");
-    assign hex_val  = is_digit ? rx_byte[3:0] : 4'(rx_byte[3:0] + 4'd9);   //"A"/"a" = 0x41/0x61 -> 1 + 9 = 10
     assign in_range = (current_RGB[2] <= 10'd255) && (current_RGB[1] <= 10'd255) && (current_RGB[0] <= 10'd255);
 
     //after 'R' the same 3 bytes are kept both as a raw address and as a decimal value;
@@ -52,7 +48,10 @@ module parser
                             (current_addr[7:0]   >= "0" && current_addr[7:0]   <= "9");
 
     //in these states the next byte is binary, so a "{" value must not restart the message
-    assign bin_field = (current_state == RED)  || (current_state == R1)   || (current_state == R2);
+    assign bin_field = (current_state == RED)  || (current_state == R1)   || (current_state == R2)  ||
+                       (current_state == WR)   || (current_state == WA2)  || (current_state == WA1) ||
+                       (current_state == WZH)  || (current_state == WDH1) ||
+                       (current_state == WZL)  || (current_state == WDL1);
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -61,11 +60,9 @@ module parser
             current_led <= '0;
             current_addr  <= '0;
             current_data  <= '0;
-            hex_cnt       <= '0;
         end
         else if (rx_ready) begin 
             current_state <= next_state;
-            hex_cnt       <= next_hex_cnt;
             current_RGB <= next_RGB;
             current_led   <= next_led;
             current_addr  <= next_addr;
@@ -138,7 +135,6 @@ module parser
         next_led   = current_led;
         next_addr  = current_addr;
         next_data  = current_data;
-        next_hex_cnt = '0;
 
         if (rx_byte == "{" && !bin_field) next_state = MSG_START;
         else case (current_state)
@@ -146,7 +142,7 @@ module parser
             MSG_START   : begin 
                             if (rx_byte == "R")      next_state = RED;
                             else if (rx_byte == "L")   next_state = LED;
-                            else if (rx_byte == "W") next_state = WR;      //hex_cnt starts at 0
+                            else if (rx_byte == "W") next_state = WR;
                         end
             RED         : begin
                               next_state       = R1;
@@ -209,29 +205,21 @@ module parser
                           end
             L3          : if (rx_byte == "}") next_state = LED_MSG_END;
 
-            //write command: {Whhhhhh,Vhhhh,Vhhhh}, h = ASCII hex digit
-            //  6 digits = 24-bit address, then 4 + 4 digits = 32-bit data (MSB first)
-            //  each digit is shifted in from the right; hex_cnt counts the digits of the field
-            WR          : if (is_hex) begin                             //address digits
-                              next_addr    = {current_addr[ADDR_W-5:0], hex_val};
-                              next_hex_cnt = hex_cnt + 1'b1;
-                              next_state   = (hex_cnt == 3'd5) ? WADDR : WR;
-                          end
-            WADDR       : if (rx_byte == ",") next_state = W_COMMA1;
-            W_COMMA1    : if (rx_byte == "V") next_state = WVH;      //hex_cnt starts at 0
-            WVH         : if (is_hex) begin                             //data digits 31:16
-                              next_data    = {current_data[DATA_W-5:0], hex_val};
-                              next_hex_cnt = hex_cnt + 1'b1;
-                              next_state   = (hex_cnt == 3'd3) ? WDH : WVH;
-                          end
-            WDH         : if (rx_byte == ",") next_state = W_COMMA2;
-            W_COMMA2    : if (rx_byte == "V") next_state = WVL;      //hex_cnt starts at 0
-            WVL         : if (is_hex) begin                             //data digits 15:0
-                              next_data    = {current_data[DATA_W-5:0], hex_val};
-                              next_hex_cnt = hex_cnt + 1'b1;
-                              next_state   = (hex_cnt == 3'd3) ? WDL : WVL;
-                          end
-            WDL         : if (rx_byte == "}") next_state = WR_MSG_END;
+            //write command: {W A2 A1 A0 , V 00 DH1 DH0 , V 00 DL1 DL0}
+            WR          : begin next_state = WA2;  next_addr[23:16] = rx_byte; end
+            WA2         : begin next_state = WA1;  next_addr[15:8]  = rx_byte; end
+            WA1         : begin next_state = WA0;  next_addr[7:0]   = rx_byte; end
+            WA0         : if (rx_byte == ",")   next_state = W_COMMA1;
+            W_COMMA1    : if (rx_byte == "V")   next_state = WVH;
+            WVH         : if (rx_byte == 8'h00) next_state = WZH;
+            WZH         : begin next_state = WDH1; next_data[31:24] = rx_byte; end
+            WDH1        : begin next_state = WDH0; next_data[23:16] = rx_byte; end
+            WDH0        : if (rx_byte == ",")   next_state = W_COMMA2;
+            W_COMMA2    : if (rx_byte == "V")   next_state = WVL;
+            WVL         : if (rx_byte == 8'h00) next_state = WZL;
+            WZL         : begin next_state = WDL1; next_data[15:8]  = rx_byte; end
+            WDL1        : begin next_state = WDL0; next_data[7:0]   = rx_byte; end
+            WDL0        : if (rx_byte == "}")   next_state = WR_MSG_END;
 
             default     : ;
         endcase
