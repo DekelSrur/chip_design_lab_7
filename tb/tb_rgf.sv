@@ -34,7 +34,8 @@ module tb_rgf;
     logic tx_pkt = 0;                               // tx_fsm -> cnt_rgf
 
 //RGF outputs
-    logic [1:0] led_sel, cie_en, led_on;
+    logic [1:0] led_sel, led_on;
+    logic       cie_on;
     logic [PATTERN_DATA_W-1:0] pattern;
     logic [15:0] time_slots, sweep_time;
     lut_reg_t [2:0] lut_cfg;                        // [2]=R, [1]=G, [0]=B
@@ -63,7 +64,7 @@ module tb_rgf;
     led_rgf u_led_rgf (
         .clk(clk), .rst_n(rst_n),
         .led_sel_update(led_sel_update), .hw_wr_en(hw_wr_en),
-        .led_sel(led_sel), .cie_en(cie_en), .pattern(pattern), .led_on(led_on),
+        .led_sel(led_sel), .cie_on(cie_on), .pattern(pattern), .led_on(led_on),
         .bus(led_bus)
     );
 
@@ -166,7 +167,7 @@ module tb_rgf;
         $display("Test 1: reset values");
         set_reset_values();
         check_all();
-        out_check(1, led_sel === 2'b01 && cie_en === 2'b11 && led_on === 2'b11 && pattern === 2'h0);
+        out_check(1, led_sel === 2'b01 && cie_on === 1'b1 && led_on === 2'b11 && pattern === 2'h0);
         out_check(1, time_slots === 16'd1024 && sweep_time === 16'd0 && enable === 1 && sw_rst === 0);
         out_check(1, lut_cfg[2].out_freq === 13'd1000 && lut_cfg[1].out_freq === 13'd1000 &&
                      lut_cfg[0].out_freq === 13'd1000);
@@ -175,7 +176,7 @@ module tb_rgf;
         $display("Test 2: led_rgf write / read");
         write(LED_CTRL, 32'h0000_002A);                 //led_sel = LED17, LED17 on, LED17 CIE on
         read_check(LED_CTRL, 32'h0000_002A);
-        out_check(2, led_sel === 2'b10 && led_on === 2'b10 && cie_en === 2'b10);
+        out_check(2, led_sel === 2'b10 && led_on === 2'b10 && cie_on === 1'b1);
         write(LED_PATTERN, 32'h0000_0002);              //rainbow
         read_check(LED_PATTERN, 32'h0000_0002);
         out_check(2, pattern === 2'h2);
