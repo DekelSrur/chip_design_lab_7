@@ -11,15 +11,17 @@ module display_mux (
     // RX mode values
     input  logic [23:0] edit_rgb,       // {R, G, B}: T2 = R, T1 = G, T0 = B
     input  logic edit_led,              // T3: 1 = "16", 0 = "17"
+    input  logic [7:0] dig_sel,         // from param_ctrl: selected field, lit on the decimal points
 
-    output logic [31:0] digits,         
-    output logic [7:0] dps,           //decimal point per digit
-    output logic [7:0] dash
+    output logic [31:0] digits,         // to seg7_ctrl
+    output logic [7:0] dps,             // decimal point per digit: layout points + selected field, to seg7_ctrl
+    output logic [7:0] dash             // to seg7_ctrl
     
 );
 
     logic [8:0] count_val;
     logic [3:0] t1_int, t1_frac;
+    logic [7:0] layout_dps;             //decimal points of the current layout
 
     always_comb begin
         unique case (count_sel)
@@ -41,16 +43,18 @@ module display_mux (
                        (count_val[8] ? 8'hFF : count_val[7:0]), //t2
                        t1_int, t1_frac,                         //t1
                        byte_val };                              //t0
-            dps  = 8'b0000_1000;                                //decimal point t1
+            layout_dps = 8'b0000_1000;                          //decimal point t1
             dash = 8'b0000_0000;
         end
         else begin                                              //rx layout
             digits = {(edit_led ? 8'h16 : 8'h17),              //t3: LED16 / LED17
                        edit_rgb };                              //t2 = R, t1 = G, t0 = B (hex)
-            dps  = 8'b0000_0000;
+            layout_dps = 8'b0000_0000;
             dash = 8'b0000_0000;
         end
     end
+
+    assign dps = layout_dps | dig_sel;  //selected field marked on the decimal points
 
 endmodule
 

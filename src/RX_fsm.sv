@@ -4,9 +4,9 @@ module RX_fsm #(
     parameter int CLKS_PER_BIT = 1736   // system_clk / baud_rate = 100MHz / 57600
 )(
     input  logic clk, rst_n,
-    input  logic rx,
-    output logic [7:0] rx_byte,
-    output logic rx_ready // one-cycle pulse: 1 byte collected, msg is complete
+    input  logic rx,             // rx_s from sync module
+    output logic [7:0] rx_byte,  // to parser
+    output logic rx_ready        // to parser, one-cycle pulse: 1 byte collected, msg is complete
 );
 
 localparam int TICKS_RATE = CLKS_PER_BIT/16;   // clocks per 1/16 bit: 1736/16 = 108 (rounded down)

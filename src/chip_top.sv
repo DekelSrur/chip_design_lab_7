@@ -61,8 +61,7 @@ module chip_top
     logic tx_pkt;                           //tx_fsm -> cnt_rgf
 //register outputs
     logic [1:0] led_sel_rgf;                //LED_CTRL.led_sel - not used yet (one colour for both LEDs)
-    logic [1:0] cie_en;                     //LED_CTRL.cie_on, [0]=LED16 [1]=LED17
-    logic cie_on;                           //CIE setting used by color_translate (one colour for both LEDs)
+    logic cie_on;                           //led_rgf: CIE setting of the lit LED, to color_translate
     logic [1:0] led_on;                     //LED_CTRL.led_on to pwm_ctrl
     logic [1:0] pattern;                    //LED_PATTERN to dds_ctrl
     logic [15:0] time_slots;                //PWM_CFG.time_slots to pwm_ctrl (PWM period)
@@ -71,9 +70,7 @@ module chip_top
 //color / PWM path
     logic [23:0] apply_rgb;                 //{R, G, B}
     logic led_sel_pc;                       //param_ctrl led choice: 1 = LED16, 0 = LED17
-    logic led_sel_pc_q;
-    logic led_wr_en_q;
-    logic hw_wr_en;                         //param_ctrl chose a led to write LED_CTRL
+    logic hw_wr_en;                         //param_ctrl: 1-clock pulse, write led_sel_pc into LED_CTRL
     logic [7:0] dig_sel;                    //selected field, 2 bits per display pair
     logic [23:0] edit_rgb;                  //{R, G, B} being edited -> display
     logic edit_led;                         //LED being edited -> display
@@ -81,7 +78,6 @@ module chip_top
     logic [2:0][PWM_W-1:0] duty_mod;        //dds_ctrl -> pwm_ctrl
 //display
     logic [31:0] digits;
-    logic [7:0] dps_mux;
     logic [7:0] dps;
     logic [7:0] dash;
 
@@ -125,7 +121,7 @@ module chip_top
     led_rgf u_led_rgf (
         .clk(clk), .rst_n(rst_n),
         .led_sel_update(led_sel_pc), .hw_wr_en(hw_wr_en),
-        .led_sel(led_sel_rgf), .cie_en(cie_en), .pattern(pattern), .led_on(led_on),
+        .led_sel(led_sel_rgf), .cie_on(cie_on), .pattern(pattern), .led_on(led_on),
         .bus(led_bus)
     );
 
@@ -167,28 +163,8 @@ module chip_top
         .row_index(row_idx), .col_index(col_idx), .pixel_value(pix_val),
         .RGB_wr_en(rgb_wr_en), .led_wr_en(led_wr_en), .led(led_cmd),
         .applyRGB(apply_rgb), .led_sel(led_sel_pc), .dig_sel(dig_sel),
-        .edit_RGB(edit_rgb), .edit_led(edit_led)
+        .edit_RGB(edit_rgb), .edit_led(edit_led), .hw_wr_en(hw_wr_en)
     );
-
-    //param_ctrl keeps the led choice as a level; led_rgf wants a write pulse.
-    //one HW write to LED_CTRL is issued:
-    //  - one cycle after a led message (led_sel_pc already holds the new choice)
-    //  - when the level changes (CENTER button applied a different led)
-    always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            led_sel_pc_q <= 1'b0;
-            led_wr_en_q  <= 1'b0;
-        end
-        else begin
-            led_sel_pc_q <= led_sel_pc;
-            led_wr_en_q  <= led_wr_en;
-        end
-    end
-
-    assign hw_wr_en = led_wr_en_q || (led_sel_pc != led_sel_pc_q);
-
-    //one colour drives both LEDs: use LED16's CIE setting when LED16 is on, otherwise LED17's
-    assign cie_on = led_on[0] ? cie_en[0] : cie_en[1];
 
     color_translate #(.PWM_SLOTS(PWM_SLOTS), .CIE_SCALE(CIE_SCALE)) u_color_translate (
         .clk(clk), .rst_n(rst_n), .applyRGB(apply_rgb), .cie_on(cie_on),
@@ -211,10 +187,9 @@ module chip_top
         .rx_mode(1'b1),                        
         .byte_val(8'd0), .speed_sel(2'd0), .count_sel(2'd0), .rows_sent(9'd0),
         .edit_rgb(edit_rgb), .edit_led(edit_led),
-        .digits(digits), .dps(dps_mux), .dash(dash)
+        .dig_sel(dig_sel),
+        .digits(digits), .dps(dps), .dash(dash)
     );
-
-    assign dps = dps_mux | dig_sel;
 
     seg7_ctrl #(.REFRESH_DIV(REFRESH_DIV)) u_seg7_ctrl (
         .clk(clk), .rst_n(rst_n), .digits(digits), .dps(dps), .dash(dash),

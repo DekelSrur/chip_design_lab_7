@@ -34,6 +34,7 @@ module dds_ctrl
     input  logic [1:0]                   pattern,      // from led_rgf
     input  lut_reg_t [N_CH-1:0]          lut_cfg,      // from pwm_rgf
     input  logic [N_CH-1:0][PWM_W-1:0]   duty_in,      // from color_translate
+    
     output logic [N_CH-1:0][PWM_W-1:0]   duty_out      // to pwm_ctrl
 );
 

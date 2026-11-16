@@ -4,18 +4,19 @@ module parser
     import pkg_sys::*;
     import pkg_rgf::*;
 (
-    input logic clk, rst_n, rx_ready,
-    input logic [BYTE-1:0] rx_byte,
+    input logic clk, rst_n, 
+    input logic rx_ready,                                         // from sync module
+    input logic [BYTE-1:0] rx_byte,                               // from sync module
 
-    output logic [BYTE-1:0] row_index, col_index, pixel_value,
-    output logic led, RGB_wr_en, led_wr_en,
-    output logic [ADDR_W-1:0] master_addr,      //register address {A2, A1, A0}
-    output logic [DATA_W-1:0] master_wdata,     //write data {DH1, DH0, DL1, DL0}
-    output logic master_wen,                    //write command
-    output logic master_ren,                     //read command
-    output logic rx_pkt,                        //any valid packet
-    output logic color_msg,                     //valid colour message
-    output logic cfg_msg                        //valid write/read command
+    output logic [BYTE-1:0] row_index, col_index, pixel_value,    // RGB parameters to param_ctrl
+    output logic led, RGB_wr_en, led_wr_en,                       // to param_ctrl
+    output logic [ADDR_W-1:0] master_addr,                        // register address {A2, A1, A0}
+    output logic [DATA_W-1:0] master_wdata,                       // write data {DH1, DH0, DL1, DL0}
+    output logic master_wen,                                      // write command to addr_xbar
+    output logic master_ren,                                      // read command to addr_xbar
+    output logic rx_pkt,                                          // any valid packet, to cnt_rgf 
+    output logic color_msg,                                       // valid colour message, to cnt_rgf
+    output logic cfg_msg                                          // valid write/read command, to cnt_rgf
 ); 
 
     typedef enum logic[5:0] {IDLE, MSG_START,

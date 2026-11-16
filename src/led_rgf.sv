@@ -6,7 +6,9 @@ module led_rgf
     input logic clk,
     input logic rst_n,
     input logic led_sel_update, hw_wr_en,         // from param_ctrl
-    output logic [1:0] led_sel, cie_en,           // to color_translate
+
+    output logic [1:0] led_sel,                   // currently unused
+    output logic cie_on,                          // to color_translate: CIE setting of the lit LED
     output logic [PATTERN_DATA_W-1:0] pattern,    // to dds_ctrl
     output logic [1:0] led_on,                    // to pwm_ctrl
     rgf_bus_if.rw_slave bus                       // interface with addr_xbar
@@ -18,7 +20,8 @@ logic led_ctrl_sel;
 logic led_pattern_sel;
 
 assign led_sel = led_ctrl_reg.led_sel_q;
-assign cie_en  = {led_ctrl_reg.led17_cie_on_q, led_ctrl_reg.led16_cie_on_q};
+//one colour drives both LEDs: use LED16's CIE setting when LED16 is on, otherwise LED17's
+assign cie_on  = led_ctrl_reg.led16_on_q ? led_ctrl_reg.led16_cie_on_q : led_ctrl_reg.led17_cie_on_q;
 assign led_on  = {led_ctrl_reg.led17_on_q, led_ctrl_reg.led16_on_q};
 assign pattern = led_pattern_reg.pattern;
 

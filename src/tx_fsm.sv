@@ -5,15 +5,15 @@ module tx_fsm
 (
     input logic clk,
     input logic rst_n,
-    input logic master_rvalid,                  //raddr/radata are valid                     
-    input logic [ADDR_W-1:0] master_raddr,      //address that was sent
-    input logic [DATA_W-1:0] master_rdata,      //value that was read
-    input logic tx_done,                      
+    input logic master_rvalid,                  // raddr/radata are valid, from addr_xbar                   
+    input logic [ADDR_W-1:0] master_raddr,      // address that was sent, from addr_xbar
+    input logic [DATA_W-1:0] master_rdata,      // value that was read, from addr_xbar
+    input logic tx_done,                        // from uart_tx
 
-    output logic tx_start,
-    output logic [7:0] tx_data,
-    output logic busy,
-    output logic tx_pkt
+    output logic tx_start,                      // to uart_tx
+    output logic [7:0] tx_data,                 // to uart_tx
+    output logic busy,                          // currently unused
+    output logic tx_pkt                         // to cnt_rgf
 );
 
     localparam int MSG_LEN = 16;                 //bytes in a read response

@@ -13,7 +13,7 @@ module param_ctrl
     output logic [7:0] dig_sel,                                 // {[1:0]T3, [1:0]T2, [1:0]T1, [1:0]T0}
     output logic [23:0] edit_RGB,                               // {R, G, B} being edited (to the display)
     output logic edit_led,                                      // LED being edited: 1 = LED16, 0 = LED17
-    output logic hw_wr_en                                       // to led_rgf, enables editing the register led_reg's leds fields
+    output logic hw_wr_en                                       // to led_rgf: 1-clock pulse, write led_sel into LED_CTRL
 );
 
     typedef enum logic [1:0] {IDLE, ACTIVATED, PRESSED} state_t;
@@ -32,10 +32,14 @@ module param_ctrl
     logic [23:0] current_RGB;  
     digits_t current_digits;                                     // 00=T0, 01=T1 10=T2, 11=T3
     leds_t digit_leds;
+    logic led_sel_q;                                             // led_sel one clock ago
+    logic led_wr_en_q;                                           // led_wr_en one clock ago
 
     assign dig_sel = digit_leds;
     assign edit_RGB = current_RGB;
     assign edit_led = current_led;
+    assign hw_wr_en = led_wr_en_q || (led_sel != led_sel_q);
+
 
     //mealy fsm - converting the debounced button press into a single command
     always_ff @(posedge clk or negedge rst_n) begin
@@ -81,7 +85,6 @@ module param_ctrl
             current_RGB <= 24'd0;
             current_led <= '0;
             led_sel <= '0;
-            hw_wr_en <= '0;
         end
         else if (RGB_wr_en) begin                                 // update the color to the rx message
             current_RGB <= {row_index, col_index, pixel_value};
@@ -114,10 +117,25 @@ module param_ctrl
                 CENTER  : begin                       // sends the data to the leds and the led_rgf
                             led_sel <= current_led;
                             applyRGB <= current_RGB;
-                            hw_wr_en <= '1;     
                         end
                         default: ;
             endcase
+        end
+    end
+
+    //led_sel is a level, led_rgf needs a 1-clock write pulse (hw_wr_en).
+    //one HW write to LED_CTRL is issued:
+    //  - one cycle after a led message (led_sel already holds the new choice)
+    //  - when led_sel changes (CENTER button applied a different led)
+    
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            led_sel_q   <= 1'b0;
+            led_wr_en_q <= 1'b0;
+        end
+        else begin
+            led_sel_q   <= led_sel;
+            led_wr_en_q <= led_wr_en;
         end
     end
 

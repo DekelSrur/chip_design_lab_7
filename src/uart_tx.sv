@@ -5,12 +5,12 @@ module uart_tx #(
 )(
     input logic clk,
     input logic rst_n,
-    input logic tx_start,
-    input logic [7:0] tx_data,
+    input logic tx_start,          // from tx_fsm
+    input logic [7:0] tx_data,     // from tx_data
 
-    output logic tx,
-    output logic tx_busy,
-    output logic tx_done
+    output logic tx,               // to uart_txd
+    output logic tx_busy,          // currently unused
+    output logic tx_done           // to tx_fsm
 );
 
    localparam BCW = $clog2(CLKS_PER_BIT);   // baud counter width: 1736 is 11 bits

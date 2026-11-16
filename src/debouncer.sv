@@ -5,9 +5,9 @@ module debouncer #(
 )(
     input logic clk,
     input logic rst_n,
-    input logic [4:0] btn_in,
+    input logic [4:0] btn_in, // from sync module
 
-    output logic [4:0] btn_db
+    output logic [4:0] btn_db // to param_ctrl
 );
 
 //localparam
