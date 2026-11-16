@@ -1,73 +1,94 @@
 `timescale 1ns / 1ps
 
-// tb_chip_top - system-level testbench for Lab 6
-//   Lab 5 regression : TX transfer, RX message parsing, 7-segment display
-//   Lab 6            : RX color -> param_ctrl -> color_translate -> pwm_ctrl -> LED16/LED17,
-//                      button editing (L/R select, U/D +-1, C apply), LED select, color report
-//   RX messages (parser): color "{Rddd,Gddd,Bddd}", LED select "{L016}" / "{L017}"
-//   Not tested yet (spec pending): color report sent on UART by tx_fsm,
-//   RX display of applyRGB.
+// tb_chip_top - system-level testbench for Lab 7
+//   The testbench plays the PC: it only touches the chip_top pins.
+//     uart_rxd : sends messages (8N1, LSB first)
+//     uart_txd : receives and decodes the 16-byte read responses
+//     led16/17 : measures the PWM high time per channel
+//   Register map (pkg_rgf):
+//     0x0000 LED_CTRL   0x0004 LED_PATTERN   0x0008 PWM_CFG
+//     0x000C RED_LUT    0x0010 GREEN_LUT     0x0014 BLUE_LUT
+//     0x0018 RX_PKT_CNT 0x001C TX_PKT_CNT    0x0020 COLOR_MSG_CNT  0x0024 CFG_MSG_CNT
+//     0x0028 SYS_CTRL   0x002C SYS_STATUS    0x0030 SYS_VERSION
+//   Messages:
+//     write    {W A2 A1 A0 , V 00 DH1 DH0 , V 00 DL1 DL0}
+//     read     {R A2 A1 A0}
+//     response {R A2 A1 A0 , V 00 DH1 DH0 , V 00 DL1 DL0}    (16 bytes)
+//     color    {Rddd,Gddd,Bddd}   led select {L016} / {L017}
+
 module tb_chip_top;
     import pkg_sys::*;
 
-    localparam int CPB   = 64;                  // clocks per bit in simulation
-    localparam int T_BIT = CPB * 10;            // one bit = 640 ns
-    localparam int SLOTS = PWM_SLOTS_DEF;       // chip_top default PWM resolution (1024)
-    localparam int PWM_W = $clog2(SLOTS);
-    localparam int CIE   = CIE_SCALE_DEF;       // chip_top default brightness (128)
+    localparam int CPB    = 32;                 // clocks per UART bit in simulation (16x oversampling)
+    localparam int T_BIT  = CPB * 10;           // one bit = 320 ns
+    localparam int SLOTS  = PWM_SLOTS_DEF;      // chip_top default PWM resolution (1024)
+    localparam int RSP_LEN = 16;                // bytes in a read response
+    localparam int R = 2, G = 1, B = 0;         // channel index in led16 / led17
 
-    // selected-field pattern on leds[13:4]
-    localparam logic [9:0] SEL_B   = 10'h003;   // T0 -> LED[5:4]
-    localparam logic [9:0] SEL_G   = 10'h018;   // T1 -> LED[8:7]
-    localparam logic [9:0] SEL_R   = 10'h060;   // T2 -> LED[10:9]
-    localparam logic [9:0] SEL_LED = 10'h300;   // T3 -> LED[13:12]
+    // register addresses
+    localparam logic [23:0] A_LED_CTRL    = 24'h000000;
+    localparam logic [23:0] A_LED_PATTERN = 24'h000004;
+    localparam logic [23:0] A_PWM_CFG     = 24'h000008;
+    localparam logic [23:0] A_RED_LUT     = 24'h00000C;
+    localparam logic [23:0] A_GREEN_LUT   = 24'h000010;
+    localparam logic [23:0] A_BLUE_LUT    = 24'h000014;
+    localparam logic [23:0] A_RX_PKT_CNT  = 24'h000018;
+    localparam logic [23:0] A_TX_PKT_CNT  = 24'h00001C;
+    localparam logic [23:0] A_COLOR_CNT   = 24'h000020;
+    localparam logic [23:0] A_CFG_CNT     = 24'h000024;
+    localparam logic [23:0] A_SYS_CTRL    = 24'h000028;
+    localparam logic [23:0] A_SYS_STATUS  = 24'h00002C;
+    localparam logic [23:0] A_SYS_VERSION = 24'h000030;
+    localparam logic [23:0] A_UNMAPPED    = 24'h000100;
 
-    // buttons {c, u, d, l, r}
-    localparam logic [4:0] B_C = 5'b10000;
-    localparam logic [4:0] B_U = 5'b01000;
-    localparam logic [4:0] B_D = 5'b00100;
-    localparam logic [4:0] B_L = 5'b00010;
-    localparam logic [4:0] B_R = 5'b00001;
-
-//DUT signals - 4-state logic, so X/Z from the DUT stays visible
+//DUT signals
     logic clk = 0, cpu_resetn = 0;
     logic btnc = 0, btnu = 0, btnd = 0, btnl = 0, btnr = 0;
-    logic [15:0] sw = '0;
     logic uart_rxd = 1;                         // UART line idles high
-    logic uart_txd, led, led15, dp;
-    logic [13:4] leds;
+    logic uart_txd;
     logic [2:0] led16, led17;                   // {R, G, B}
     logic [7:0] an;
     logic [6:0] seg;
+    logic dp;
 
-//tb-internal bookkeeping - 2-state / int
-    int errors   = 0;
-    int rx_n     = 0;                           // characters received by the PC model
-    int n_report = 0;                           // color_start pulses
-    int n_x      = 0;                           // cycles with X/Z on an output
-    int n_before, n_bad;
-    int hi16 [N_CH], hi17 [N_CH];               // measured PWM high cycles per channel
-    logic [7:0] rx_char [3000];                 // characters sent by the FPGA
+//tb bookkeeping
+    int errors = 0;
+    int rx_n   = 0;                             // bytes received by the PC model
+    logic [7:0] rx_char [4096];                 // bytes sent by the FPGA
+    int hi16 [3], hi17 [3];                     // PWM high cycles per channel
 
-    // short times for simulation: debounce 10 clocks, delays 20/40/80 clocks
-    chip_top #(.CLKS_PER_BIT(CPB), .DEBOUNCE_CYCLES(10), .DELAY_50MS(20),
-               .DELAY_100MS(40), .DELAY_200MS(80), .REFRESH_DIV(4)) dut (
-        .clk(clk), .cpu_resetn(cpu_resetn),
-        .btnc(btnc), .btnu(btnu), .btnd(btnd), .btnl(btnl), .btnr(btnr),
-        .sw(sw), .uart_rxd(uart_rxd),
-        .uart_txd(uart_txd), .led(led), .led15(led15), .leds(leds),
-        .led16(led16), .led17(led17), .an(an), .seg(seg), .dp(dp));
+    // short times for simulation: UART 32 clocks/bit, debounce 10 clocks, fast display refresh
+    chip_top #(
+        .CLKS_PER_BIT    (CPB),
+        .DEBOUNCE_CYCLES (10),
+        .REFRESH_DIV     (4)
+    ) dut (
+        .clk        (clk),
+        .cpu_resetn (cpu_resetn),
+        .btnc       (btnc),
+        .btnu       (btnu),
+        .btnd       (btnd),
+        .btnl       (btnl),
+        .btnr       (btnr),
+        .uart_rxd   (uart_rxd),
+        .uart_txd   (uart_txd),
+        .led16      (led16),
+        .led17      (led17),
+        .an         (an),
+        .seg        (seg),
+        .dp         (dp)
+    );
 
     always #5 clk = ~clk;                       // 100 MHz
 
-    // stop the simulation if it hangs (for example a wait that never ends)
+    // stop the simulation if it hangs
     initial begin
-        #100_000_000;
+        #50_000_000;
         $display("tb_chip_top FAILED: timeout");
         $finish;
     end
 
-    // PC receiver: read every character on uart_txd (8N1, LSB first)
+//PC receiver: read every byte on uart_txd (8N1, LSB first)
     initial begin
         logic [7:0] r;
         forever begin
@@ -83,47 +104,7 @@ module tb_chip_top;
         end
     end
 
-    // monitor after reset:
-    //   - no X/Z on any chip_top output
-    //   - color report only while tx_fsm is idle, carrying the current duty values
-    always @(negedge clk) begin
-        if (dut.rst_n === 1'b1) begin
-            if ($isunknown({uart_txd, led, led15, leds, led16, led17, an, seg, dp})) begin
-                if (n_x < 5) $display("[%0t] FAILED: X/Z on a chip_top output", $time);
-                n_x++;
-            end
-            if (dut.color_start === 1'b1) begin
-                n_report++;
-                if (dut.busy !== 1'b0) begin
-                    $display("[%0t] FAILED: color report while tx_fsm is busy", $time);
-                    errors++;
-                end
-                if (dut.trns_msg !== dut.duty) begin
-                    $display("[%0t] FAILED: trns_msg=%h, duty=%h", $time, dut.trns_msg, dut.duty);
-                    errors++;
-                end
-            end
-        end
-    end
-
-    // reference model: sRGB -> gamma (provided table) -> * CIE / 256 (PWM_W = GAMMA_W = 10)
-    function automatic int exp_duty(input int srgb);
-        return (dut.u_color_translate.gamma_table[srgb] * CIE) >> 8;
-    endfunction : exp_duty
-
-    // press and release buttons {c, u, d, l, r} (longer than sync + debounce)
-    task automatic press_btn(input logic [4:0] b);
-        {btnc, btnu, btnd, btnl, btnr} = b;
-        #300;
-        {btnc, btnu, btnd, btnl, btnr} = '0;
-        #300;
-    endtask : press_btn
-
-    task automatic press_n(input logic [4:0] b, input int n);
-        repeat (n) press_btn(b);
-    endtask : press_n
-
-    // PC transmitter: send one byte on uart_rxd
+//PC transmitter
     task automatic send_byte(input logic [7:0] b);
         uart_rxd = 0;                           // start bit
         #(T_BIT);
@@ -135,306 +116,182 @@ module tb_chip_top;
         #(T_BIT);
     endtask : send_byte
 
-    // send a message of any length, first character first
+    // text message (color / led select)
     task automatic send_msg(input string msg);
         for (int i = 0; i < msg.len(); i++)
             send_byte(msg[i]);
         #(2 * T_BIT);
     endtask : send_msg
 
-    // applied color and duty values against the reference model
-    task automatic check_color(input logic [23:0] exp_rgb, input string name);
-        int nb = 0;
-        for (int c = 0; c < N_CH; c++)
-            if (dut.duty[c] !== PWM_W'(exp_duty(exp_rgb[c*BYTE +: BYTE]))) nb++;
-        if (dut.apply_rgb !== exp_rgb || nb != 0) begin
-            $display("%s FAILED: applyRGB=%h (exp %h), %0d wrong duty values",
-                     name, dut.apply_rgb, exp_rgb, nb);
-            errors++;
-        end
-        else
-            $display("%s PASSED: applyRGB=%h, duty R=%0d G=%0d B=%0d",
-                     name, exp_rgb, dut.duty[2], dut.duty[1], dut.duty[0]);
-    endtask : check_color
+    // {W A2 A1 A0 , V 00 DH1 DH0 , V 00 DL1 DL0}
+    task automatic write_reg(input logic [23:0] a, input logic [31:0] d);
+        send_byte("{");      send_byte("W");
+        send_byte(a[23:16]); send_byte(a[15:8]);  send_byte(a[7:0]);
+        send_byte(",");      send_byte("V");      send_byte(8'h00);
+        send_byte(d[31:24]); send_byte(d[23:16]);
+        send_byte(",");      send_byte("V");      send_byte(8'h00);
+        send_byte(d[15:8]);  send_byte(d[7:0]);
+        send_byte("}");
+        #(2 * T_BIT);
+    endtask : write_reg
 
-    // count high cycles of every RGB pin over one full PWM period
-    // (window starts at cnt == 1 because the PWM outputs are registered)
-    task automatic measure_pwm();
-        repeat (2) begin                        // let a new duty reach the shadow register
-            do @(negedge clk); while (dut.u_pwm_ctrl.cnt !== '1);
+    // {R A2 A1 A0} -> wait for the 16-byte response, check its frame, return the data
+    task automatic read_reg(input logic [23:0] a, output logic [31:0] d);
+        int n0, k;
+        logic [7:0] exp_frame [RSP_LEN];
+        n0 = rx_n;
+        send_byte("{");      send_byte("R");
+        send_byte(a[23:16]); send_byte(a[15:8]);  send_byte(a[7:0]);
+        send_byte("}");
+        // response: 16 bytes x 10 bits, plus some slack
+        k = 0;
+        while (rx_n < n0 + RSP_LEN && k < 40 * RSP_LEN) begin
+            #(T_BIT);
+            k++;
         end
-        do @(negedge clk); while (dut.u_pwm_ctrl.cnt !== PWM_W'(1));
-        for (int c = 0; c < N_CH; c++) begin
-            hi16[c] = 0;
-            hi17[c] = 0;
+        if (rx_n < n0 + RSP_LEN) begin
+            $display("  FAIL  read 0x%06h: only %0d of %0d response bytes", a, rx_n - n0, RSP_LEN);
+            errors++;
+            d = 'x;
+            return;
         end
-        repeat (SLOTS) begin
-            for (int c = 0; c < N_CH; c++) begin
-                hi16[c] += (led16[c] === 1'b1);
-                hi17[c] += (led17[c] === 1'b1);
+        d = {rx_char[n0+8], rx_char[n0+9], rx_char[n0+13], rx_char[n0+14]};
+        exp_frame = '{"{", "R", a[23:16], a[15:8], a[7:0], ",", "V", 8'h00, d[31:24], d[23:16],
+                      ",", "V", 8'h00, d[15:8], d[7:0], "}"};
+        for (int i = 0; i < RSP_LEN; i++)
+            if (rx_char[n0+i] !== exp_frame[i]) begin
+                $display("  FAIL  read 0x%06h: response byte %0d = 0x%02h, expected 0x%02h",
+                         a, i, rx_char[n0+i], exp_frame[i]);
+                errors++;
             end
-            @(negedge clk);
+    endtask : read_reg
+
+//checkers
+    task automatic check(input string name, input logic ok);
+        if (ok) $display("  pass  %s", name);
+        else begin $display("  FAIL  %s", name); errors++; end
+    endtask : check
+
+    task automatic check_reg(input logic [23:0] a, input logic [31:0] exp, input string name);
+        logic [31:0] d;
+        read_reg(a, d);
+        check($sformatf("%-26s read 0x%06h = 0x%08h (expected 0x%08h)", name, a, d, exp), d === exp);
+    endtask : check_reg
+
+    // count PWM high cycles per channel over n PWM periods
+    // (pwm_ctrl loads a new duty only at the end of a period, so skip one period first)
+    task automatic measure_pwm(input int n_periods);
+        repeat (SLOTS) @(posedge clk);
+        for (int c = 0; c < 3; c++) begin hi16[c] = 0; hi17[c] = 0; end
+        repeat (n_periods * SLOTS) begin
+            @(posedge clk) #1;
+            for (int c = 0; c < 3; c++) begin
+                hi16[c] += led16[c];
+                hi17[c] += led17[c];
+            end
         end
     endtask : measure_pwm
 
-    // PWM on the selected LED must match the model, the other LED must stay off
-    task automatic check_pwm(input logic [23:0] rgb, input logic sel, input string name);
-        int nb = 0;
-        int e;
-        measure_pwm();
-        for (int c = 0; c < N_CH; c++) begin
-            e = exp_duty(rgb[c*BYTE +: BYTE]);
-            if (hi16[c] != (sel ? e : 0)) nb++;
-            if (hi17[c] != (sel ? 0 : e)) nb++;
-        end
-        if (nb != 0) begin
-            $display("%s FAILED: LED16=%0d/%0d/%0d LED17=%0d/%0d/%0d (R/G/B high cycles)",
-                     name, hi16[2], hi16[1], hi16[0], hi17[2], hi17[1], hi17[0]);
-            errors++;
-        end
-        else
-            $display("%s PASSED: %s R/G/B = %0d/%0d/%0d of %0d", name, sel ? "LED16" : "LED17",
-                     sel ? hi16[2] : hi17[2], sel ? hi16[1] : hi17[1], sel ? hi16[0] : hi17[0], SLOTS);
-    endtask : check_pwm
+    logic [31:0] d, d0, d1, cnt0, cnt1;
+    int lo, hi;
 
     initial begin
-        #100 cpu_resetn = 1;
-        #100;
+        $dumpfile("tb_chip_top.vcd");
+        $dumpvars(0, tb_chip_top);
 
-        // test 1: after reset - TX line idle, TX mode, RGB LEDs off, selector on B
-        if (uart_txd !== 1 || led15 !== 0 || led16 !== '0 || led17 !== '0 ||
-            leds !== SEL_B || dut.apply_rgb !== '0) begin
-            $display("Test 1 FAILED: txd=%b led15=%b led16=%b led17=%b leds=%h",
-                     uart_txd, led15, led16, led17, leds);
-            errors++;
-        end
-        else
-            $display("Test 1 PASSED: TX idle, TX mode, RGB LEDs off, selector on B");
-
-        // test 2: TX, byte 41, N = 1, no delay "41 20 0D 0A", display "01 01 0.0 41"
-        sw = 16'b0_00_000_00_0100_0001;         // {mode, count, unused, speed, byte}
-        #200;                                   // let the switches pass the debouncer
-        press_btn(B_C);
-        wait (dut.busy == 0);
-        #(20 * T_BIT);                          // let the PC receiver read the last character
-        if (rx_n !== 4 || rx_char[0] !== 8'h41 || rx_char[1] !== 8'h20 ||
-            rx_char[2] !== 8'h0D || rx_char[3] !== 8'h0A || led !== 1) begin
-            $display("Test 2 FAILED: %0d chars", rx_n);
-            errors++;
-        end
-        else
-            $display("Test 2 PASSED: PC received %h %h %h %h", rx_char[0], rx_char[1], rx_char[2], rx_char[3]);
-        if (dut.digits !== 32'h0101_0041) begin
-            $display("Test 2b FAILED: display %h", dut.digits);
-            errors++;
-        end
-        else
-            $display("Test 2b PASSED: display %h", dut.digits);
-
-        // test 3: TX, byte 55, N = 32, 50 ms -> 2112 characters, display "20 20 0.5 55"
-        rx_n = 0;
-        sw = 16'b0_01_000_01_0101_0101;
-        #200;
-        press_btn(B_C);
-        wait (dut.busy == 0);
+        #200 cpu_resetn = 1;
         #(20 * T_BIT);
-        if (rx_n !== 2112 || dut.digits !== 32'h2020_0555) begin
-            $display("Test 3 FAILED: %0d chars, display %h", rx_n, dut.digits);
-            errors++;
-        end
-        else
-            $display("Test 3 PASSED: %0d chars, display %h", rx_n, dut.digits);
 
-        // test 4: RX mode, valid message -> display "17 0C C8 FF" (LED | R | G | B), color applied, one report
-        sw[15] = 1;
-        #200;
-        n_before = n_report;
-        send_msg("{R012,G200,B255}");
-        if (led15 !== 1 || dut.digits !== 32'h170C_C8FF) begin
-            $display("Test 4 FAILED: LED15=%b display %h", led15, dut.digits);
-            errors++;
-        end
-        else
-            $display("Test 4 PASSED: LED15 on, display %h", dut.digits);
-        check_color({8'd12, 8'd200, 8'd255}, "Test 4b");
-        if (n_report !== n_before + 1) begin
-            $display("Test 4c FAILED: %0d color reports (exp 1)", n_report - n_before);
-            errors++;
-        end
-        else
-            $display("Test 4c PASSED: one color report");
+        $display("--- 1. first contact: read the version");
+        check_reg(A_SYS_VERSION, 32'h0007_0001, "SYS_VERSION");
 
-        // test 5: invalid messages - display and color do not change
-        send_msg("{R300,G010,B020}");           // value > 255
-        send_msg("{X001,G001,B001}");           // wrong letter
-        send_msg("{R001,G002B003}");            // missing comma
-        send_msg("{R0a1,G002,B003}");           // not a digit
-        if (dut.digits !== 32'h170C_C8FF || dut.apply_rgb !== {8'd12, 8'd200, 8'd255}) begin
-            $display("Test 5 FAILED: display %h, applyRGB %h", dut.digits, dut.apply_rgb);
-            errors++;
-        end
-        else
-            $display("Test 5 PASSED: invalid messages ignored");
+        $display("--- 2. reset values");
+        check_reg(A_SYS_CTRL,    32'h0000_0002, "SYS_CTRL (enable = 1)");
+        check_reg(A_LED_PATTERN, 32'h0000_0000, "LED_PATTERN (static)");
+        check_reg(A_PWM_CFG,     32'h0000_0400, "PWM_CFG (1024 slots)");
+        check_reg(A_RED_LUT,     32'h0000_03E8, "RED_LUT (1000 Hz)");
+        check_reg(A_SYS_STATUS,  32'h0000_0000, "SYS_STATUS (no errors)");
 
-        // test 6: btnc does not start TX in RX mode (CENTER with an unchanged color -> no report)
-        rx_n = 0;
-        n_before = n_report;
-        press_btn(B_C);
-        #(20 * T_BIT);
-        if (dut.busy !== 0 || rx_n !== 0 || n_report !== n_before) begin
-            $display("Test 6 FAILED: TX or color report started in RX mode");
-            errors++;
-        end
-        else
-            $display("Test 6 PASSED: btnc ignored by TX in RX mode");
+        $display("--- 3. write + read back (RW registers)");
+        write_reg(A_LED_PATTERN, 32'h0000_0002);  check_reg(A_LED_PATTERN, 32'h0000_0002, "LED_PATTERN");
+        write_reg(A_LED_PATTERN, 32'h0000_0000);  check_reg(A_LED_PATTERN, 32'h0000_0000, "LED_PATTERN");
+        write_reg(A_GREEN_LUT,   32'h0055_1234);  check_reg(A_GREEN_LUT,   32'h0055_1234, "GREEN_LUT");
+        write_reg(A_GREEN_LUT,   32'h0000_03E8);  // back to the default
 
-        // test 7: PWM on LED17 (default led_sel = 0) matches the color, LED16 off
-        check_pwm({8'd12, 8'd200, 8'd255}, 1'b0, "Test 7");
-
-        // test 8: L/R move the selector B -> G -> R -> LED, no wrap at either end
-        n_bad = 0;
-        press_btn(B_L); n_bad += (leds !== SEL_G);
-        press_btn(B_L); n_bad += (leds !== SEL_R);
-        press_btn(B_L); n_bad += (leds !== SEL_LED);
-        press_btn(B_L); n_bad += (leds !== SEL_LED);    // left end
-        press_btn(B_R); n_bad += (leds !== SEL_R);
-        press_btn(B_R); n_bad += (leds !== SEL_G);
-        press_btn(B_R); n_bad += (leds !== SEL_B);
-        press_btn(B_R); n_bad += (leds !== SEL_B);      // right end
-        if (n_bad != 0) begin
-            $display("Test 8 FAILED: %0d wrong selector positions", n_bad);
-            errors++;
-        end
-        else
-            $display("Test 8 PASSED: selector moves B-G-R-LED, no wrap");
-
-        // test 9: U/D edit the selected field, applied only on CENTER
-        send_msg("{R010,G020,B030}");           // known start color, selector on B
-        n_before = n_report;
-        press_n(B_U, 3);                        // B: 30 -> 33
-        if (dut.digits !== 32'h170A_1421) begin // display follows the edit at once
-            $display("Test 9a FAILED: display %h (exp 170a1421)", dut.digits);
-            errors++;
-        end
-        else
-            $display("Test 9a PASSED: display shows the edit %h", dut.digits);
-        if (dut.u_param_ctrl.current_RGB !== {8'd10, 8'd20, 8'd33} ||
-            dut.apply_rgb !== {8'd10, 8'd20, 8'd30}) begin
-            $display("Test 9 FAILED: edit=%h applied=%h (edit must wait for CENTER)",
-                     dut.u_param_ctrl.current_RGB, dut.apply_rgb);
-            errors++;
-        end
-        else
-            $display("Test 9 PASSED: edit held until CENTER");
-        press_btn(B_C);
-        check_color({8'd10, 8'd20, 8'd33}, "Test 9b");
-        press_btn(B_L);                         // select G
-        press_n(B_D, 2);                        // G: 20 -> 18
-        press_btn(B_C);
-        check_color({8'd10, 8'd18, 8'd33}, "Test 9c");
-        press_btn(B_R);                         // back to B
-        if (n_report !== n_before + 2) begin
-            $display("Test 9d FAILED: %0d color reports (exp 2)", n_report - n_before);
-            errors++;
-        end
-        else
-            $display("Test 9d PASSED: one color report per applied change");
-
-        // test 10: no wrap - B stays 255 on UP, R stays 0 on DOWN, no report
-        send_msg("{R000,G128,B255}");
-        n_before = n_report;
-        press_btn(B_U);                         // B = 255
-        press_n(B_L, 2);                        // select R
-        press_btn(B_D);                         // R = 0
-        press_btn(B_C);
-        if (dut.u_param_ctrl.current_RGB !== {8'd0, 8'd128, 8'd255} ||
-            dut.apply_rgb !== {8'd0, 8'd128, 8'd255} || n_report !== n_before) begin
-            $display("Test 10 FAILED: edit=%h applied=%h", dut.u_param_ctrl.current_RGB, dut.apply_rgb);
-            errors++;
-        end
-        else
-            $display("Test 10 PASSED: values saturate at 0 and 255");
-        press_n(B_R, 2);                        // back to B
-
-        // test 11: two buttons at once are ignored
-        press_btn(B_D | B_L);
-        if (dut.u_param_ctrl.current_RGB !== {8'd0, 8'd128, 8'd255} || leds !== SEL_B) begin
-            $display("Test 11 FAILED: two-button press was accepted");
-            errors++;
-        end
-        else
-            $display("Test 11 PASSED: two-button press ignored");
-
-        // test 12: LED select on T3 - UP + CENTER moves the color to LED16, DOWN + CENTER back
-        press_n(B_L, 3);                        // select LED
-        press_btn(B_U);
-        if (dut.digits[31:24] !== 8'h16) begin
-            $display("Test 12a FAILED: T3=%h (exp 16)", dut.digits[31:24]);
-            errors++;
-        end
-        else
-            $display("Test 12a PASSED: T3 shows 16 while editing the LED");
-        if (leds !== SEL_LED || dut.led_sel !== 1'b0) begin
-            $display("Test 12 FAILED: LED changed before CENTER (leds=%h led_sel=%b)", leds, dut.led_sel);
-            errors++;
-        end
-        else
-            $display("Test 12 PASSED: LED select held until CENTER");
-        press_btn(B_C);
-        check_pwm({8'd0, 8'd128, 8'd255}, 1'b1, "Test 12b");
-        press_btn(B_D);
-        press_btn(B_C);
-        check_pwm({8'd0, 8'd128, 8'd255}, 1'b0, "Test 12c");
-        press_n(B_R, 3);                        // back to B
-
-        // test 13: a new RX color replaces an edit that was not applied
-        press_btn(B_D);                         // B: 255 -> 254, not applied
-        send_msg("{R001,G002,B003}");
-        if (dut.u_param_ctrl.current_RGB !== {8'd1, 8'd2, 8'd3}) begin
-            $display("Test 13 FAILED: edit=%h", dut.u_param_ctrl.current_RGB);
-            errors++;
-        end
-        else
-            $display("Test 13 PASSED: RX color overrides the pending edit");
-        check_color({8'd1, 8'd2, 8'd3}, "Test 13b");
-
-        // test 14: LED select from RX - "{L016}" -> LED16, "{L017}" -> LED17, bad messages ignored
+        $display("--- 4. color message -> LED16, LED17 off");
         send_msg("{L016}");
-        if (dut.led_sel !== 1'b1) begin
-            $display("Test 14 FAILED: led_sel=%b after {L016}", dut.led_sel);
-            errors++;
-        end
-        else
-            $display("Test 14 PASSED: {L016} selects LED16");
-        check_pwm({8'd1, 8'd2, 8'd3}, 1'b1, "Test 14b");
-        send_msg("{L018}");                     // no such LED
-        send_msg("{L16}");                      // too short
-        if (dut.led_sel !== 1'b1) begin
-            $display("Test 14c FAILED: invalid LED message accepted");
-            errors++;
-        end
-        else
-            $display("Test 14c PASSED: invalid LED messages ignored");
+        send_msg("{R255,G000,B000}");
+        measure_pwm(4);
+        check($sformatf("LED16 R on  (%0d cycles)", hi16[R]), hi16[R] > SLOTS);   // > 25% duty
+        check($sformatf("LED16 G,B off (%0d,%0d)", hi16[G], hi16[B]), hi16[G] == 0 && hi16[B] == 0);
+        check($sformatf("LED17 off (%0d,%0d,%0d)", hi17[R], hi17[G], hi17[B]),
+              hi17[R] == 0 && hi17[G] == 0 && hi17[B] == 0);
+
+        $display("--- 5. led select -> LED17");
         send_msg("{L017}");
-        if (dut.led_sel !== 1'b0) begin
-            $display("Test 14d FAILED: led_sel=%b after {L017}", dut.led_sel);
-            errors++;
+        measure_pwm(4);
+        check($sformatf("LED17 R on  (%0d cycles)", hi17[R]), hi17[R] > SLOTS);
+        check($sformatf("LED16 off (%0d,%0d,%0d)", hi16[R], hi16[G], hi16[B]),
+              hi16[R] == 0 && hi16[G] == 0 && hi16[B] == 0);
+        send_msg("{L016}");
+
+        $display("--- 6. SYS_CTRL.enable = 0 -> all LEDs off");
+        write_reg(A_SYS_CTRL, 32'h0000_0000);
+        measure_pwm(4);
+        check($sformatf("LED16 off (%0d,%0d,%0d)", hi16[R], hi16[G], hi16[B]),
+              hi16[R] == 0 && hi16[G] == 0 && hi16[B] == 0);
+        write_reg(A_SYS_CTRL, 32'h0000_0002);
+        measure_pwm(4);
+        check($sformatf("LED16 R back on (%0d cycles)", hi16[R]), hi16[R] > SLOTS);
+
+        $display("--- 7. breath: LED16 R follows the sine (5000 Hz = 20,000 clocks)");
+        write_reg(A_RED_LUT, 32'h0000_1388);       // out_freq = 5000 Hz
+        write_reg(A_LED_PATTERN, 32'h0000_0001);   // breath
+        lo = 1 << 30; hi = 0;
+        repeat (12) begin                           // ~1.2 sine periods, sample every 2nd PWM period
+            measure_pwm(1);
+            if (hi16[R] < lo) lo = hi16[R];
+            if (hi16[R] > hi) hi = hi16[R];
         end
-        else
-            $display("Test 14d PASSED: {L017} selects LED17");
+        check($sformatf("brightness changes (min %0d, max %0d per period)", lo, hi),
+              hi > 4 * lo + 50);
+        write_reg(A_LED_PATTERN, 32'h0000_0000);   // static again
+        write_reg(A_RED_LUT, 32'h0000_03E8);
 
-        // test 15: a message cut in the middle is dropped, the next "{" restarts the parser
-        send_msg("{R100,G1{R005,G006,B007}");
-        check_color({8'd5, 8'd6, 8'd7}, "Test 15");
+        $display("--- 8. counters");
+        read_reg(A_RX_PKT_CNT, cnt0);
+        read_reg(A_COLOR_CNT,  d0);
+        send_msg("{R010,G020,B030}");               // colour
+        send_msg("{L016}");                          // led
+        send_msg("{R010;G020,B030}");               // invalid - not counted
+        read_reg(A_RX_PKT_CNT, cnt1);
+        // a read returns the count from before its own packet, so between the two RX_PKT_CNT
+        // reads we count: RX read #1 + COLOR_CNT read + colour + led = 4 (the bad one is not counted)
+        check($sformatf("RX_PKT_CNT +4 (got +%0d)", cnt1 - cnt0), cnt1 - cnt0 == 4);
+        read_reg(A_COLOR_CNT, d1);
+        check($sformatf("COLOR_MSG_CNT +1 (got +%0d)", d1 - d0), d1 - d0 == 1);
+        read_reg(A_TX_PKT_CNT, d0);
+        read_reg(A_TX_PKT_CNT, d1);
+        check($sformatf("TX_PKT_CNT +1 per response (got +%0d)", d1 - d0), d1 - d0 == 1);
 
-        if (n_x != 0) begin
-            $display("FAILED: X/Z seen on outputs in %0d cycles", n_x);
-            errors++;
-        end
+        $display("--- 9. error flags (SYS_STATUS, read-to-clear)");
+        read_reg(A_UNMAPPED, d);
+        check($sformatf("unmapped address reads 0 (0x%08h)", d), d === 32'h0);
+        check_reg(A_SYS_STATUS, 32'h0000_0001, "SYS_STATUS invalid_addr");
+        check_reg(A_SYS_STATUS, 32'h0000_0000, "SYS_STATUS cleared");
+        write_reg(A_RX_PKT_CNT, 32'h1234_5678);     // CNT_RGF is read-only
+        check_reg(A_SYS_STATUS, 32'h0000_0002, "SYS_STATUS ro_wr");
+        write_reg(A_SYS_VERSION, 32'h0);
+        check_reg(A_SYS_VERSION, 32'h0007_0001, "SYS_VERSION not written");
 
-        if (errors == 0) $display("ALL TESTS PASSED");
-        else             $display("%0d TEST(S) FAILED", errors);
+        $display("--- 10. SW reset: config back to reset values, SYS_CTRL kept");
+        write_reg(A_LED_PATTERN, 32'h0000_0002);
+        write_reg(A_SYS_CTRL, 32'h0000_0003);       // sw_rst + keep enable
+        #(20 * T_BIT);
+        check_reg(A_LED_PATTERN, 32'h0000_0000, "LED_PATTERN after sw_rst");
+        check_reg(A_SYS_CTRL,    32'h0000_0002, "SYS_CTRL after sw_rst");
+
+        $display("\n=== %s (%0d errors) ===", errors ? "TEST FAILED" : "TEST PASSED", errors);
         $finish;
     end
-
-endmodule : tb_chip_top
+endmodule
