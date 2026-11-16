@@ -123,14 +123,21 @@ module tb_chip_top;
         #(2 * T_BIT);
     endtask : send_msg
 
-    // {W A2 A1 A0 , V 00 DH1 DH0 , V 00 DL1 DL0}
+        // one hex digit as an ASCII character: 0-9, A-F
+    function automatic logic [7:0] hex_char(input logic [3:0] v);
+        if (v < 4'd10) return 8'("0") + 8'(v);
+        else           return 8'("A") + 8'(v - 4'd10);
+    endfunction
+
+    // write command {Wxxx,Vhhhhhh,Vhhhhhh}: address and data as ASCII hex characters
+    // each V field: "00" and then 4 hex digits (16 bits of data)
     task automatic write_reg(input logic [23:0] a, input logic [31:0] d);
         send_byte("{");      send_byte("W");
-        send_byte(a[23:16]); send_byte(a[15:8]);  send_byte(a[7:0]);
-        send_byte(",");      send_byte("V");      send_byte(8'h00);
-        send_byte(d[31:24]); send_byte(d[23:16]);
-        send_byte(",");      send_byte("V");      send_byte(8'h00);
-        send_byte(d[15:8]);  send_byte(d[7:0]);
+        send_byte(hex_char(a[11:8])); send_byte(hex_char(a[7:4])); send_byte(hex_char(a[3:0]));
+        send_byte(",");      send_byte("V");      send_byte("0");      send_byte("0");
+        for (int i = 7; i >= 4; i--) send_byte(hex_char(d[i*4 +: 4]));
+        send_byte(",");      send_byte("V");      send_byte("0");      send_byte("0");
+        for (int i = 3; i >= 0; i--) send_byte(hex_char(d[i*4 +: 4]));
         send_byte("}");
         #(2 * T_BIT);
     endtask : write_reg
@@ -141,7 +148,7 @@ module tb_chip_top;
         logic [7:0] exp_frame [RSP_LEN];
         n0 = rx_n;
         send_byte("{");      send_byte("R");
-        send_byte(a[23:16]); send_byte(a[15:8]);  send_byte(a[7:0]);
+        send_byte(hex_char(a[11:8])); send_byte(hex_char(a[7:4])); send_byte(hex_char(a[3:0]));
         send_byte("}");
         // response: 16 bytes x 10 bits, plus some slack
         k = 0;
@@ -156,7 +163,7 @@ module tb_chip_top;
             return;
         end
         d = {rx_char[n0+8], rx_char[n0+9], rx_char[n0+13], rx_char[n0+14]};
-        exp_frame = '{"{", "R", a[23:16], a[15:8], a[7:0], ",", "V", 8'h00, d[31:24], d[23:16],
+        exp_frame = '{"{", "R", hex_char(a[11:8]), hex_char(a[7:4]), hex_char(a[3:0]), ",", "V", 8'h00, d[31:24], d[23:16],
                       ",", "V", 8'h00, d[15:8], d[7:0], "}"};
         for (int i = 0; i < RSP_LEN; i++)
             if (rx_char[n0+i] !== exp_frame[i]) begin
